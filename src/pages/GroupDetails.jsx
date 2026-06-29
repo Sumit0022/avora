@@ -161,11 +161,6 @@ function GroupDetails() {
 
     const receiverInfo = usersInfo[settleUpData.to];
     const upiId = receiverInfo?.upiId;
-    
-    if (upiId) {
-      const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(receiverInfo.name)}&am=${settleUpData.amount}`;
-      window.location.href = upiUrl;
-    }
 
     try {
       const numAmount = Number(settleUpData.amount);
@@ -210,6 +205,14 @@ function GroupDetails() {
       await update(ref(db), updates);
       toast.success('Payment recorded and sent for confirmation.');
       setSettleUpData(null);
+
+      // Open UPI app after successful recording
+      if (upiId) {
+        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(receiverInfo.name)}&am=${settleUpData.amount}`;
+        setTimeout(() => {
+          window.location.href = upiUrl;
+        }, 500);
+      }
     } catch (err) {
       toast.error('Failed to mark as paid.');
     }
@@ -335,28 +338,68 @@ function GroupDetails() {
   };
 
   const renderTimeline = () => {
-    if (expenses.length === 0) {
+    const approvedSettlements = settlements.filter(s => s.status === 'approved').map(s => ({
+      ...s,
+      isSettlement: true,
+      date: s.updatedAt ? s.updatedAt.split('T')[0] : s.createdAt.split('T')[0]
+    }));
+
+    const timelineItems = [...expenses, ...approvedSettlements].sort((a, b) => {
+      const dateDiff = new Date(b.date) - new Date(a.date);
+      if (dateDiff !== 0) return dateDiff;
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+
+    if (timelineItems.length === 0) {
       return (
         <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
           <IoTimeOutline size={48} style={{ opacity: 0.5, marginBottom: '10px' }} />
-          <h3 style={{ margin: '0 0 10px 0' }}>No Expenses Yet</h3>
-          <p>Add a group expense to get started.</p>
+          <h3 style={{ margin: '0 0 10px 0' }}>No Activity Yet</h3>
+          <p>Add a group expense or settle up to get started.</p>
         </div>
       );
     }
 
     return (
       <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center', marginBottom: '10px'}}>Long press an item to edit or delete</div>
-        {expenses.map(exp => {
-          const cat = getCategoryDetails(exp.categoryId);
-          const payerName = exp.paidBy === currentUser.uid ? 'You' : (usersInfo[exp.paidBy]?.name || 'Someone');
-          const isMine = exp.paidBy === currentUser.uid;
+        <div style={{fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center', marginBottom: '10px'}}>Long press an expense to edit or delete</div>
+        {timelineItems.map(item => {
+          if (item.isSettlement) {
+            const payerName = item.paidBy === currentUser.uid ? 'You' : (usersInfo[item.paidBy]?.name || 'Someone');
+            const receiverName = item.paidTo === currentUser.uid ? 'You' : (usersInfo[item.paidTo]?.name || 'Someone');
+            
+            return (
+              <motion.div 
+                key={item.id}
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                style={{ background: 'var(--bg-secondary)', borderRadius: '16px', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  <div style={{ width: '45px', height: '45px', borderRadius: '14px', background: 'rgba(52, 199, 89, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', color: 'var(--success)' }}>
+                    💸
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Payment</h4>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+                      {payerName} paid {receiverName} • {new Date(item.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--success)' }}>₹{item.amount.toLocaleString('en-IN')}</span>
+                </div>
+              </motion.div>
+            );
+          }
+
+          const cat = getCategoryDetails(item.categoryId);
+          const payerName = item.paidBy === currentUser.uid ? 'You' : (usersInfo[item.paidBy]?.name || 'Someone');
+          const isMine = item.paidBy === currentUser.uid;
           
           return (
             <motion.div 
-              key={exp.id}
-              {...(isMine ? bindLongPress({ type: 'expense', data: exp }) : {})}
+              key={item.id}
+              {...(isMine ? bindLongPress({ type: 'expense', data: item }) : {})}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               style={{ background: 'var(--bg-secondary)', borderRadius: '16px', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: isMine ? 'pointer' : 'default', userSelect: 'none' }}
             >
@@ -365,14 +408,14 @@ function GroupDetails() {
                   {cat.icon}
                 </div>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>{exp.note}</h4>
+                  <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>{item.note}</h4>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-                    Paid by {payerName} • {new Date(exp.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    Paid by {payerName} • {new Date(item.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                   </span>
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>₹{exp.amount.toLocaleString('en-IN')}</span>
+                <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>₹{item.amount.toLocaleString('en-IN')}</span>
               </div>
             </motion.div>
           );
