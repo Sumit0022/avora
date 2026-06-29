@@ -45,19 +45,29 @@ function GroupDetails() {
       const data = snap.val();
       if (data) {
         const memberList = Object.keys(data).map(uid => ({ uid, ...data[uid] }));
-        setMembers(memberList);
 
         const uInfos = {};
         await Promise.all(memberList.map(async (m) => {
-          const uSnap = await get(ref(db, `users/${m.uid}`));
-          if (uSnap.exists()) {
-            uInfos[m.uid] = uSnap.val();
+          try {
+            const uSnap = await get(ref(db, `users/${m.uid}`));
+            if (uSnap.exists()) {
+              uInfos[m.uid] = uSnap.val();
+            } else {
+              uInfos[m.uid] = { name: 'Unknown User (No Profile)' };
+            }
+          } catch (err) {
+            console.error("Error fetching user", m.uid, err);
+            uInfos[m.uid] = { name: 'Unknown User (Error)' };
           }
         }));
+        
         setUsersInfo(uInfos);
+        setMembers(memberList);
 
         const me = memberList.find(m => m.uid === currentUser.uid);
         if (me) setMyRole(me.role);
+      } else {
+        setMembers([]);
       }
       setLoading(false);
     });
