@@ -205,3 +205,23 @@ input:focus {
 .texture-investment {
   background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 20.5V18H0v-2h20v-2.5l10 3.5-10 3.5zm-8 4h28v-2H12v2zm-4 4h32v-2H8v2zm-4 4h36v-2H4v2z' fill='%23ffffff' fill-opacity='0.15' fill-rule='evenodd'/%3E%3C/svg%3E");
 }
+
+/* Custom Branding for New Logo */
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 26%; /* Creates an Apple-style squircle to smoothly wrap the white background */
+  object-fit: cover;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.brand-logo:hover {
+  transform: scale(1.05);
+}
+
+[data-theme='dark'] .brand-logo {
+  /* In dark mode, instead of trying to hide the white background, we embrace it as a premium app icon style */
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.15), 0 2px 8px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}

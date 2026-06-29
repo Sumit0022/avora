@@ -68,7 +68,7 @@ function ProfileSetup() {
         uid: currentUser.uid,
         email: currentUser.email,
         photoURL: currentUser.photoURL || null,
-        fullName: formData.fullName,
+        name: formData.fullName || currentUser.displayName || 'User',
         username: formData.username.toLowerCase(),
         currency: formData.currency,
         upiId: formData.upiId,

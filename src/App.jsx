@@ -48,8 +48,8 @@ function App() {
       {!hideHeader && (
         <header style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
           <Link to="/" style={{ textDecoration: 'none' }}>
-            <h1 style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0, letterSpacing: '-1.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '14px', height: '14px', background: 'var(--brand-primary)', borderRadius: '4px', transform: 'rotate(45deg)' }} />
+            <h1 style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0, letterSpacing: '-1px', display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+              <img src="/logo.png" alt="Avora Logo" className="brand-logo" />
               AVORA
             </h1>
           </Link>
