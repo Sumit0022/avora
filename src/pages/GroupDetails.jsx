@@ -422,7 +422,7 @@ function GroupDetails() {
     <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', paddingBottom: '100px' }}>
       
       {/* Header */}
-      <div style={{ padding: '20px', position: 'sticky', top: 0, backgroundColor: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(20px)', zIndex: 100 }}>
+      <div style={{ padding: '20px', position: 'sticky', top: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(20px)', zIndex: 100 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <button onClick={() => navigate('/groups')} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '1rem', fontWeight: 600, color: 'var(--brand-primary)', cursor: 'pointer' }}>
             <IoChevronBack size={20} /> Groups

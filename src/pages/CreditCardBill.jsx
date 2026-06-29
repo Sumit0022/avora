@@ -157,7 +157,7 @@ function CreditCardBill() {
     <div style={{ backgroundColor: '#000000', minHeight: '100vh', color: 'white', paddingBottom: '100px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
       {/* Sleek CRED-style Header */}
-      <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(20px)', zIndex: 100 }}>
+      <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(20px)', zIndex: 100 }}>
         <button onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '1rem', fontWeight: 600, color: 'white', cursor: 'pointer' }}>
           <IoChevronBack size={20} /> Back
         </button>
