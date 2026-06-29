@@ -32,12 +32,22 @@ function AddAccountModal({ isOpen, onClose, onSave, initialData }) {
     if (formData.type !== 'Credit Card' && formData.balance === '') return;
     if (formData.type === 'Credit Card' && (!formData.creditLimit || !formData.billingDate)) return;
 
-    onSave({
-      ...formData,
-      balance: formData.type === 'Credit Card' ? 0 : parseFloat(formData.balance),
-      creditLimit: formData.type === 'Credit Card' ? parseFloat(formData.creditLimit) : undefined,
-      billingDate: formData.type === 'Credit Card' ? parseInt(formData.billingDate) : undefined,
-    });
+    const payload = {
+      name: formData.name,
+      type: formData.type,
+      color: formData.color,
+      last4Digits: formData.last4Digits || ''
+    };
+
+    if (formData.type === 'Credit Card') {
+      payload.balance = 0;
+      payload.creditLimit = parseFloat(formData.creditLimit);
+      payload.billingDate = parseInt(formData.billingDate);
+    } else {
+      payload.balance = parseFloat(formData.balance);
+    }
+
+    onSave(payload);
   };
 
 
