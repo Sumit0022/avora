@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IoClose, IoCalculatorOutline, IoPersonOutline, IoPeopleOutline } from 'react-icons/io5';
+import { IoClose, IoCalculatorOutline, IoPersonOutline, IoPeopleOutline, IoWalletOutline } from 'react-icons/io5';
 import { useCategories } from '../context/CategoryContext';
 import { db } from '../firebase';
-import { ref, push, set, update } from 'firebase/database';
+import { ref, push, update, get, onValue } from 'firebase/database';
 import { useAuth } from '../context/AuthContext';
 
 function AddGroupExpenseModal({ isOpen, onClose, groupId, members, usersInfo }) {
@@ -22,8 +22,25 @@ function AddGroupExpenseModal({ isOpen, onClose, groupId, members, usersInfo }) 
   const [hasGuest, setHasGuest] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // New state for personal account syncing
+  const [accounts, setAccounts] = useState([]);
+  const [accountId, setAccountId] = useState('');
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && currentUser) {
+      // Fetch user's personal accounts to deduct from
+      const accountsRef = ref(db, `accounts/${currentUser.uid}`);
+      onValue(accountsRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          const accList = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+          setAccounts(accList);
+          if (accList.length > 0 && !accountId) {
+            setAccountId(accList[0].id);
+          }
+        }
+      }, { onlyOnce: true });
+
       // Default to selecting all approved members
       const allUids = members.filter(m => m.status === 'approved').map(m => m.uid);
       setSplitAmong(allUids);
@@ -36,7 +53,7 @@ function AddGroupExpenseModal({ isOpen, onClose, groupId, members, usersInfo }) 
       setDate(new Date().toISOString().split('T')[0]);
       setTime(new Date().toTimeString().slice(0, 5));
     }
-  }, [isOpen, members]);
+  }, [isOpen, members, currentUser]);
 
   const handleToggleMember = (uid) => {
     setSplitAmong(prev => {
@@ -65,6 +82,10 @@ function AddGroupExpenseModal({ isOpen, onClose, groupId, members, usersInfo }) 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!accountId) {
+      toast.error("Please select a personal account to pay from.");
+      return;
+    }
     if (splitAmong.length === 0 && !hasGuest) {
       toast.error("Please select at least one person for the split.");
       return;
@@ -72,9 +93,10 @@ function AddGroupExpenseModal({ isOpen, onClose, groupId, members, usersInfo }) 
     
     setIsSaving(true);
     try {
+      const numAmount = Number(amount);
       const expenseId = push(ref(db, `groupExpenses/${groupId}`)).key;
       const numPeople = splitAmong.length + (hasGuest ? 1 : 0);
-      const splitAmount = Number(amount) / numPeople;
+      const splitAmount = numAmount / numPeople;
       
       const splits = {};
       splitAmong.forEach(uid => {
@@ -84,9 +106,10 @@ function AddGroupExpenseModal({ isOpen, onClose, groupId, members, usersInfo }) 
         splits['guest'] = Number(splitAmount.toFixed(2));
       }
 
+      // Group Expense Data
       const expenseData = {
         id: expenseId,
-        amount: Number(amount),
+        amount: numAmount,
         paidBy: currentUser.uid,
         categoryId,
         note,
@@ -95,10 +118,45 @@ function AddGroupExpenseModal({ isOpen, onClose, groupId, members, usersInfo }) 
         hasGuest,
         splitAmong,
         splits,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        linkedTransactionId: null // We will set this dynamically
       };
 
-      await set(ref(db, `groupExpenses/${groupId}/${expenseId}`), expenseData);
+      // Create Personal Transaction linked to this group expense
+      const txId = push(ref(db, `transactions/${currentUser.uid}`)).key;
+      const transactionData = {
+        id: txId,
+        type: 'expense', // Normal expense on personal dashboard
+        amount: numAmount,
+        accountId,
+        categoryId,
+        note: `Group Expense: ${note}`, // Tag it visually in note
+        isGroupExpense: true,
+        groupId,
+        groupExpenseId: expenseId,
+        date,
+        time,
+        createdAt: new Date().toISOString()
+      };
+      
+      expenseData.linkedTransactionId = txId;
+
+      const updates = {};
+      updates[`groupExpenses/${groupId}/${expenseId}`] = expenseData;
+      updates[`transactions/${currentUser.uid}/${txId}`] = transactionData;
+
+      // Safely fetch and deduct account balance
+      const accSnapshot = await get(ref(db, `accounts/${currentUser.uid}/${accountId}`));
+      if (accSnapshot.exists()) {
+        const acc = accSnapshot.val();
+        updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' 
+          ? Number(acc.balance) + numAmount 
+          : Number(acc.balance) - numAmount;
+      }
+
+      await update(ref(db), updates);
+      
+      toast.success('Group expense added successfully!');
       onClose();
     } catch (err) {
       console.error(err);
@@ -134,6 +192,17 @@ function AddGroupExpenseModal({ isOpen, onClose, groupId, members, usersInfo }) 
                     style={{ fontSize: '3rem', fontWeight: 800, width: '150px', background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', textAlign: 'left' }}
                   />
                 </div>
+              </div>
+              
+              {/* Paid From Account */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}><IoWalletOutline size={16} style={{transform: 'translateY(3px)'}} /> Paid From Account</label>
+                <select value={accountId} onChange={e => setAccountId(e.target.value)} required style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', outline: 'none', WebkitAppearance: 'none' }}>
+                  <option value="" disabled>Select personal account...</option>
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.name} (₹{acc.type === 'Credit Card' ? Number(acc.creditLimit || 0) - Number(acc.balance || 0) : acc.balance})</option>
+                  ))}
+                </select>
               </div>
 
               {/* Basic Info */}

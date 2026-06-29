@@ -4,11 +4,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, onValue, get, update, remove, push } from 'firebase/database';
-import { IoChevronBack, IoSettingsOutline, IoTimeOutline, IoWalletOutline, IoPieChartOutline, IoCheckmarkCircle, IoCloseCircle, IoAdd } from 'react-icons/io5';
+import { IoChevronBack, IoSettingsOutline, IoTimeOutline, IoWalletOutline, IoPieChartOutline, IoCheckmarkCircle, IoCloseCircle, IoAdd, IoTrashOutline, IoPencilOutline } from 'react-icons/io5';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCategories } from '../context/CategoryContext';
 import { calculateSimplifiedDebts } from '../utils/debtSimplifier';
 import AddGroupExpenseModal from '../components/AddGroupExpenseModal';
+import { useLongPress } from 'use-long-press';
 
 function GroupDetails() {
   const { groupId } = useParams();
@@ -21,13 +22,33 @@ function GroupDetails() {
   const [usersInfo, setUsersInfo] = useState({});
   const [expenses, setExpenses] = useState([]);
   const [settlements, setSettlements] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [myRole, setMyRole] = useState('member');
   const [activeTab, setActiveTab] = useState('timeline');
   const [loading, setLoading] = useState(true);
+  
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+
+  // New Modals State
+  const [settleUpData, setSettleUpData] = useState(null);
+  const [confirmData, setConfirmData] = useState(null);
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  
+  const [actionSheetItem, setActionSheetItem] = useState(null);
 
   useEffect(() => {
     if (!currentUser) return;
+
+    // Fetch Accounts
+    const accountsRef = ref(db, `accounts/${currentUser.uid}`);
+    const unsubAccounts = onValue(accountsRef, (snap) => {
+      const data = snap.val();
+      if (data) {
+        setAccounts(Object.keys(data).map(k => ({ id: k, ...data[k] })));
+      } else {
+        setAccounts([]);
+      }
+    });
 
     // Fetch Group Details
     const groupRef = ref(db, `groups/${groupId}`);
@@ -99,18 +120,18 @@ function GroupDetails() {
       }
     });
 
-    // Listen for Universal Add Button
     const handleOpenModal = () => setIsAddExpenseOpen(true);
     window.addEventListener('openGroupExpenseModal', handleOpenModal);
 
     return () => { 
-      unsubGroup(); 
-      unsubMembers(); 
-      unsubExpenses(); 
-      unsubSettlements(); 
+      unsubGroup(); unsubMembers(); unsubExpenses(); unsubSettlements(); unsubAccounts();
       window.removeEventListener('openGroupExpenseModal', handleOpenModal);
     };
   }, [currentUser, groupId, navigate]);
+
+  const bindLongPress = useLongPress((event, { context }) => {
+    setActionSheetItem(context);
+  }, { threshold: 500, cancelOnMovement: true });
 
   const handleApprove = async (uid) => {
     try {
@@ -129,43 +150,181 @@ function GroupDetails() {
     }
   };
 
-  const handleSettleUp = async (tx) => {
-    const receiverInfo = usersInfo[tx.to];
+  // --- Settle Up Logic (Payer) ---
+  const handleSettleUpClick = (tx) => {
+    setSettleUpData(tx);
+    setSelectedAccountId(accounts.length > 0 ? accounts[0].id : '');
+  };
+
+  const submitSettleUp = async () => {
+    if (!selectedAccountId) return toast.error('Select an account to pay from');
+
+    const receiverInfo = usersInfo[settleUpData.to];
     const upiId = receiverInfo?.upiId;
     
     if (upiId) {
-      // Trigger deep link
-      const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(receiverInfo.name)}&am=${tx.amount}`;
+      const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(receiverInfo.name)}&am=${settleUpData.amount}`;
       window.location.href = upiUrl;
-    } else {
-      toast.error(`${receiverInfo?.name || 'Receiver'} hasn't set up a UPI ID yet. You can still mark it as paid manually.`);
     }
 
-    if (window.confirm(`Mark ₹${tx.amount} as paid to ${receiverInfo?.name}?`)) {
-      try {
-        const settleId = push(ref(db, `groupSettlements/${groupId}`)).key;
-        await update(ref(db, `groupSettlements/${groupId}/${settleId}`), {
-          id: settleId,
-          paidBy: currentUser.uid,
-          paidTo: tx.to,
-          amount: tx.amount,
-          status: 'pending',
-          createdAt: new Date().toISOString()
-        });
-      } catch (err) {
-        toast.error('Failed to mark as paid.');
+    try {
+      const numAmount = Number(settleUpData.amount);
+      const settleId = push(ref(db, `groupSettlements/${groupId}`)).key;
+      const txId = push(ref(db, `transactions/${currentUser.uid}`)).key;
+      
+      const updates = {};
+      
+      updates[`groupSettlements/${groupId}/${settleId}`] = {
+        id: settleId,
+        paidBy: currentUser.uid,
+        paidTo: settleUpData.to,
+        amount: numAmount,
+        status: 'pending',
+        linkedTransactionId: txId, 
+        createdAt: new Date().toISOString()
+      };
+
+      updates[`transactions/${currentUser.uid}/${txId}`] = {
+        id: txId,
+        type: 'expense',
+        amount: numAmount,
+        accountId: selectedAccountId,
+        categoryId: null,
+        note: `Sent settlement to ${receiverInfo?.name || 'User'}`,
+        isGroupSettlement: true,
+        groupId,
+        groupSettlementId: settleId,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().slice(0, 5),
+        createdAt: new Date().toISOString()
+      };
+
+      const accSnapshot = await get(ref(db, `accounts/${currentUser.uid}/${selectedAccountId}`));
+      if (accSnapshot.exists()) {
+        const acc = accSnapshot.val();
+        updates[`accounts/${currentUser.uid}/${selectedAccountId}/balance`] = acc.type === 'Credit Card' 
+          ? Number(acc.balance) + numAmount 
+          : Number(acc.balance) - numAmount;
+      }
+
+      await update(ref(db), updates);
+      toast.success('Payment recorded and sent for confirmation.');
+      setSettleUpData(null);
+    } catch (err) {
+      toast.error('Failed to mark as paid.');
+    }
+  };
+
+  // --- Confirm Settlement Logic (Receiver) ---
+  const handleConfirmClick = (s, isApproved) => {
+    if (isApproved) {
+      setConfirmData({ ...s, isApproved });
+      const validAccounts = accounts.filter(a => a.type !== 'Credit Card');
+      setSelectedAccountId(validAccounts.length > 0 ? validAccounts[0].id : '');
+    } else {
+      if (window.confirm("Reject this payment? The money will be refunded to the payer.")) {
+        submitConfirm({ ...s, isApproved: false });
       }
     }
   };
 
-  const handleConfirmSettlement = async (settleId, isApproved) => {
+  const submitConfirm = async (data = confirmData) => {
     try {
-      await update(ref(db, `groupSettlements/${groupId}/${settleId}`), {
-        status: isApproved ? 'approved' : 'rejected',
-        updatedAt: new Date().toISOString()
-      });
+      const updates = {};
+      const numAmount = Number(data.amount);
+      
+      if (data.isApproved) {
+        if (!selectedAccountId) return toast.error('Select an account to receive money');
+        const txId = push(ref(db, `transactions/${currentUser.uid}`)).key;
+
+        updates[`groupSettlements/${groupId}/${data.id}/status`] = 'approved';
+        updates[`groupSettlements/${groupId}/${data.id}/updatedAt`] = new Date().toISOString();
+
+        updates[`transactions/${currentUser.uid}/${txId}`] = {
+          id: txId,
+          type: 'income',
+          amount: numAmount,
+          accountId: selectedAccountId,
+          categoryId: null,
+          note: `Received settlement from ${usersInfo[data.paidBy]?.name || 'User'}`,
+          isGroupSettlement: true,
+          groupId,
+          groupSettlementId: data.id,
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().slice(0, 5),
+          createdAt: new Date().toISOString()
+        };
+
+        const accSnapshot = await get(ref(db, `accounts/${currentUser.uid}/${selectedAccountId}`));
+        if (accSnapshot.exists()) {
+          const acc = accSnapshot.val();
+          updates[`accounts/${currentUser.uid}/${selectedAccountId}/balance`] = acc.type === 'Credit Card' 
+            ? Number(acc.balance) - numAmount 
+            : Number(acc.balance) + numAmount;
+        }
+
+        await update(ref(db), updates);
+        toast.success('Payment received and balance updated.');
+        setConfirmData(null);
+      } else {
+        updates[`groupSettlements/${groupId}/${data.id}/status`] = 'rejected';
+        updates[`groupSettlements/${groupId}/${data.id}/updatedAt`] = new Date().toISOString();
+
+        if (data.linkedTransactionId) {
+           const payerTxSnap = await get(ref(db, `transactions/${data.paidBy}/${data.linkedTransactionId}`));
+           if (payerTxSnap.exists()) {
+             const payerTx = payerTxSnap.val();
+             updates[`transactions/${data.paidBy}/${data.linkedTransactionId}`] = null; 
+             
+             const payerAccSnap = await get(ref(db, `accounts/${data.paidBy}/${payerTx.accountId}`));
+             if (payerAccSnap.exists()) {
+               const pAcc = payerAccSnap.val();
+               updates[`accounts/${data.paidBy}/${payerTx.accountId}/balance`] = pAcc.type === 'Credit Card'
+                 ? Number(pAcc.balance) - numAmount
+                 : Number(pAcc.balance) + numAmount;
+             }
+           }
+        }
+        
+        await update(ref(db), updates);
+        toast.success('Payment rejected and refunded.');
+      }
     } catch (err) {
-      toast.error('Failed to update settlement status.');
+      console.error(err);
+      toast.error('Failed to update status.');
+    }
+  };
+
+  const handleDeleteGroupExpense = async (expense) => {
+    if (!window.confirm("Delete this group expense? This will also reverse the personal transaction.")) return;
+    
+    try {
+      const updates = {};
+      updates[`groupExpenses/${groupId}/${expense.id}`] = null;
+      
+      if (expense.linkedTransactionId && expense.paidBy === currentUser.uid) {
+         const txSnap = await get(ref(db, `transactions/${currentUser.uid}/${expense.linkedTransactionId}`));
+         if (txSnap.exists()) {
+           const tx = txSnap.val();
+           updates[`transactions/${currentUser.uid}/${expense.linkedTransactionId}`] = null;
+           
+           const accSnap = await get(ref(db, `accounts/${currentUser.uid}/${tx.accountId}`));
+           if (accSnap.exists()) {
+             const acc = accSnap.val();
+             const numAmount = Number(tx.amount);
+             updates[`accounts/${currentUser.uid}/${tx.accountId}/balance`] = acc.type === 'Credit Card'
+               ? Number(acc.balance) - numAmount
+               : Number(acc.balance) + numAmount;
+           }
+         }
+      }
+      
+      await update(ref(db), updates);
+      toast.success('Expense deleted.');
+      setActionSheetItem(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete expense.');
     }
   };
 
@@ -188,15 +347,18 @@ function GroupDetails() {
 
     return (
       <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center', marginBottom: '10px'}}>Long press an item to edit or delete</div>
         {expenses.map(exp => {
           const cat = getCategoryDetails(exp.categoryId);
           const payerName = exp.paidBy === currentUser.uid ? 'You' : (usersInfo[exp.paidBy]?.name || 'Someone');
+          const isMine = exp.paidBy === currentUser.uid;
           
           return (
             <motion.div 
               key={exp.id}
+              {...(isMine ? bindLongPress({ type: 'expense', data: exp }) : {})}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              style={{ background: 'var(--bg-secondary)', borderRadius: '16px', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              style={{ background: 'var(--bg-secondary)', borderRadius: '16px', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: isMine ? 'pointer' : 'default', userSelect: 'none' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                 <div style={{ width: '45px', height: '45px', borderRadius: '14px', background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>
@@ -232,7 +394,6 @@ function GroupDetails() {
     return (
       <div style={{ padding: '20px' }}>
         
-        {/* Action Required: Incoming Settlements */}
         {myPendingAsReceiver.length > 0 && (
           <div style={{ marginBottom: '30px' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '15px', color: '#FF9500' }}>Confirm Payments</h3>
@@ -244,8 +405,8 @@ function GroupDetails() {
                     <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--success)' }}>₹{s.amount.toLocaleString()}</div>
                   </div>
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => handleConfirmSettlement(s.id, true)} style={{ background: 'rgba(52, 199, 89, 0.1)', color: 'var(--success)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}><IoCheckmarkCircle size={24} /></button>
-                    <button onClick={() => handleConfirmSettlement(s.id, false)} style={{ background: 'rgba(255, 69, 58, 0.1)', color: 'var(--danger)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}><IoCloseCircle size={24} /></button>
+                    <button onClick={() => handleConfirmClick(s, true)} style={{ background: 'rgba(52, 199, 89, 0.1)', color: 'var(--success)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}><IoCheckmarkCircle size={24} /></button>
+                    <button onClick={() => handleConfirmClick(s, false)} style={{ background: 'rgba(255, 69, 58, 0.1)', color: 'var(--danger)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}><IoCloseCircle size={24} /></button>
                   </div>
                 </div>
               ))}
@@ -253,14 +414,13 @@ function GroupDetails() {
           </div>
         )}
 
-        {/* Pending outgoing (Waiting for receiver to confirm) */}
         {myPendingAsPayer.length > 0 && (
           <div style={{ marginBottom: '30px' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '15px', color: 'var(--text-secondary)' }}>Awaiting Confirmation</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {myPendingAsPayer.map(s => (
                 <div key={s.id} style={{ background: 'var(--bg-secondary)', borderRadius: '16px', padding: '15px', opacity: 0.7 }}>
-                  <div style={{ fontSize: '0.9rem' }}>You marked ₹{s.amount} as paid to {usersInfo[s.paidTo]?.name}</div>
+                  <div style={{ fontSize: '0.9rem' }}>You sent ₹{s.amount} to {usersInfo[s.paidTo]?.name}</div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>Waiting for them to confirm.</div>
                 </div>
               ))}
@@ -268,7 +428,6 @@ function GroupDetails() {
           </div>
         )}
 
-        {/* You Owe */}
         <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '15px', color: 'var(--danger)' }}>You Owe</h3>
         {iOwe.length === 0 ? (
            <p style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', marginBottom: '30px' }}>You're all settled up!</p>
@@ -280,7 +439,7 @@ function GroupDetails() {
                   <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>To {usersInfo[tx.to]?.name}</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--danger)' }}>₹{tx.amount.toLocaleString()}</div>
                 </div>
-                <button onClick={() => handleSettleUp(tx)} className="btn-primary" style={{ padding: '10px 16px', borderRadius: '12px', fontWeight: 700, fontSize: '0.9rem' }}>
+                <button onClick={() => handleSettleUpClick(tx)} className="btn-primary" style={{ padding: '10px 16px', borderRadius: '12px', fontWeight: 700, fontSize: '0.9rem' }}>
                   Settle Up
                 </button>
               </div>
@@ -288,7 +447,6 @@ function GroupDetails() {
           </div>
         )}
 
-        {/* Owed To You */}
         <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '15px', color: 'var(--success)' }}>Owed To You</h3>
         {owedToMe.length === 0 ? (
            <p style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem' }}>Nobody owes you anything.</p>
@@ -311,14 +469,11 @@ function GroupDetails() {
 
   const renderStats = () => {
     const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    
-    // Who paid what
     const spentByMember = {};
     expenses.forEach(exp => {
       if (!spentByMember[exp.paidBy]) spentByMember[exp.paidBy] = 0;
       spentByMember[exp.paidBy] += exp.amount;
     });
-    
     const sortedSpenders = Object.keys(spentByMember).sort((a,b) => spentByMember[b] - spentByMember[a]);
 
     return (
@@ -432,7 +587,6 @@ function GroupDetails() {
   return (
     <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', paddingBottom: '100px' }}>
       
-      {/* Header */}
       <div style={{ padding: '20px', position: 'sticky', top: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(20px)', zIndex: 100 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <button onClick={() => navigate('/groups')} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '1rem', fontWeight: 600, color: 'var(--brand-primary)', cursor: 'pointer' }}>
@@ -443,7 +597,6 @@ function GroupDetails() {
         <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', background: 'var(--bg-secondary)', padding: '4px 10px', borderRadius: '12px', marginTop: '5px', display: 'inline-block' }}>{group.type}</span>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', padding: '0 20px', position: 'sticky', top: '120px', backgroundColor: 'var(--bg-primary)', zIndex: 99 }}>
         {['timeline', 'balances', 'stats', 'settings'].map(tab => (
           <button 
@@ -460,7 +613,6 @@ function GroupDetails() {
         ))}
       </div>
 
-      {/* Content */}
       <div className="container" style={{ maxWidth: '600px', margin: '0 auto', paddingTop: '10px' }}>
         <AnimatePresence mode="wait">
           <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
@@ -472,14 +624,85 @@ function GroupDetails() {
         </AnimatePresence>
       </div>
 
-      {/* Add Expense Modal */}
       <AddGroupExpenseModal 
-        isOpen={isAddExpenseOpen}
-        onClose={() => setIsAddExpenseOpen(false)}
-        groupId={groupId}
-        members={members}
-        usersInfo={usersInfo}
+        isOpen={isAddExpenseOpen} onClose={() => setIsAddExpenseOpen(false)}
+        groupId={groupId} members={members} usersInfo={usersInfo}
       />
+
+      {/* Settle Up Modal */}
+      <AnimatePresence>
+        {settleUpData && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', backdropFilter: 'blur(5px)' }}>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} style={{ background: 'var(--bg-primary)', width: '100%', maxWidth: '600px', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '30px' }}>
+              <h3 style={{ margin: '0 0 5px 0', fontSize: '1.4rem', fontWeight: 800 }}>Settle Up</h3>
+              <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)' }}>Paying <strong style={{color: 'var(--text-primary)'}}>₹{settleUpData.amount}</strong> to {usersInfo[settleUpData.to]?.name}</p>
+              
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, fontSize: '0.9rem' }}>Pay From Personal Account</label>
+              <select value={selectedAccountId} onChange={e => setSelectedAccountId(e.target.value)} style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', marginBottom: '20px', outline: 'none', WebkitAppearance: 'none' }}>
+                {accounts.length === 0 && <option value="" disabled>No accounts found...</option>}
+                {accounts.map(acc => (
+                  <option key={acc.id} value={acc.id}>{acc.name} (₹{acc.type === 'Credit Card' ? Number(acc.creditLimit||0) - Number(acc.balance||0) : acc.balance})</option>
+                ))}
+              </select>
+
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <button onClick={() => setSettleUpData(null)} style={{ flex: 1, padding: '16px', borderRadius: '16px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={submitSettleUp} style={{ flex: 1, padding: '16px', borderRadius: '16px', background: 'var(--brand-primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer' }}>Pay & Record</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Confirm Settlement Modal */}
+        {confirmData && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', backdropFilter: 'blur(5px)' }}>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} style={{ background: 'var(--bg-primary)', width: '100%', maxWidth: '600px', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '30px' }}>
+              <h3 style={{ margin: '0 0 5px 0', fontSize: '1.4rem', fontWeight: 800 }}>Confirm Receipt</h3>
+              <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)' }}>Received <strong style={{color: 'var(--success)'}}>₹{confirmData.amount}</strong> from {usersInfo[confirmData.paidBy]?.name}</p>
+              
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, fontSize: '0.9rem' }}>Receive Into Account</label>
+              <select value={selectedAccountId} onChange={e => setSelectedAccountId(e.target.value)} style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', marginBottom: '20px', outline: 'none', WebkitAppearance: 'none' }}>
+                {accounts.filter(a => a.type !== 'Credit Card').length === 0 && <option value="" disabled>No bank/cash accounts found...</option>}
+                {accounts.filter(a => a.type !== 'Credit Card').map(acc => (
+                  <option key={acc.id} value={acc.id}>{acc.name} (₹{acc.balance})</option>
+                ))}
+              </select>
+
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <button onClick={() => setConfirmData(null)} style={{ flex: 1, padding: '16px', borderRadius: '16px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={() => submitConfirm()} style={{ flex: 1, padding: '16px', borderRadius: '16px', background: 'var(--success)', color: 'white', border: 'none', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer' }}>Confirm Receipt</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Action Sheet (Long Press) */}
+        {actionSheetItem && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 3000, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', backdropFilter: 'blur(5px)' }}>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} style={{ background: 'var(--bg-primary)', width: '100%', maxWidth: '600px', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '30px' }}>
+              <h3 style={{ margin: '0 0 20px 0', fontSize: '1.2rem', fontWeight: 700, textAlign: 'center' }}>Manage Expense</h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <button 
+                  onClick={() => { toast('Edit coming soon!'); setActionSheetItem(null); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '16px', borderRadius: '16px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  <IoPencilOutline size={22} /> Edit Expense
+                </button>
+                
+                <button 
+                  onClick={() => handleDeleteGroupExpense(actionSheetItem.data)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '16px', borderRadius: '16px', background: 'rgba(255, 69, 58, 0.1)', color: 'var(--danger)', border: 'none', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  <IoTrashOutline size={22} /> Delete Expense
+                </button>
+              </div>
+
+              <button onClick={() => setActionSheetItem(null)} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontWeight: 700, fontSize: '1.1rem', marginTop: '20px', cursor: 'pointer' }}>Cancel</button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
