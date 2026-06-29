@@ -82,6 +82,9 @@ function Groups() {
       // 3. User's groups index
       updates[`userGroups/${currentUser.uid}/${groupId}`] = true;
 
+      // 4. Global Invite Code Index for fast joining
+      updates[`inviteCodes/${code}`] = groupId;
+
       await update(ref(db), updates);
       
       setIsCreateModalOpen(false);
@@ -98,15 +101,34 @@ function Groups() {
     setIsSaving(true);
     setJoinError('');
     try {
-      // Find group by invite code
-      const groupsRef = ref(db, 'groups');
-      const q = query(groupsRef, orderByChild('inviteCode'), equalTo(inviteCode.toUpperCase()));
-      const snap = await get(q);
-      
-      if (snap.exists()) {
-        const groupId = Object.keys(snap.val())[0];
-        const groupData = snap.val()[groupId];
+      const code = inviteCode.toUpperCase();
+      let groupId = null;
+      let groupName = '';
 
+      // Check fast index first
+      const inviteSnap = await get(ref(db, `inviteCodes/${code}`));
+      if (inviteSnap.exists()) {
+        groupId = inviteSnap.val();
+        const groupSnap = await get(ref(db, `groups/${groupId}`));
+        groupName = groupSnap.val()?.name || 'the group';
+      } else {
+        // Fallback for groups created before the index was added
+        const groupsSnap = await get(ref(db, 'groups'));
+        if (groupsSnap.exists()) {
+          const allGroups = groupsSnap.val();
+          for (const key in allGroups) {
+            if (allGroups[key].inviteCode === code) {
+              groupId = key;
+              groupName = allGroups[key].name;
+              // Backfill the index
+              await set(ref(db, `inviteCodes/${code}`), groupId);
+              break;
+            }
+          }
+        }
+      }
+
+      if (groupId) {
         // Check if already requested or joined
         const memberSnap = await get(ref(db, `groupMembers/${groupId}/${currentUser.uid}`));
         if (memberSnap.exists()) {
@@ -129,13 +151,13 @@ function Groups() {
         
         setIsJoinModalOpen(false);
         setInviteCode('');
-        alert(`Request sent to join ${groupData.name}. An admin must approve you.`);
+        alert(`Request sent to join ${groupName}. An admin must approve you.`);
       } else {
         setJoinError('Invalid invite code');
       }
     } catch (err) {
       console.error(err);
-      setJoinError('Failed to join group');
+      setJoinError('Failed to join group. Error: ' + err.message);
     }
     setIsSaving(false);
   };
