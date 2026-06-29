@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoClose, IoSettingsOutline, IoSwapHorizontalOutline, IoTrashOutline } from 'react-icons/io5';
 import { useCategories } from '../context/CategoryContext';
@@ -108,11 +109,11 @@ function AddTransactionModal({ isOpen, onClose, initialData = null }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!amount || Number(amount) <= 0) return alert('Enter a valid amount');
-    if (!accountId) return alert('Select an account');
-    if (type !== 'transfer' && type !== 'save' && !categoryId) return alert('Select a category');
-    if (type === 'transfer' && (!toAccountId || accountId === toAccountId)) return alert('Select a valid destination account');
-    if (type === 'save' && !toGoalId) return alert('Select a goal to save into');
+    if (!amount || Number(amount) <= 0) return toast.error('Enter a valid amount');
+    if (!accountId) return toast.error('Select an account');
+    if (type !== 'transfer' && type !== 'save' && !categoryId) return toast.error('Select a category');
+    if (type === 'transfer' && (!toAccountId || accountId === toAccountId)) return toast.error('Select a valid destination account');
+    if (type === 'save' && !toGoalId) return toast.error('Select a goal to save into');
 
     setIsSaving(true);
     try {
@@ -191,7 +192,7 @@ function AddTransactionModal({ isOpen, onClose, initialData = null }) {
       onClose();
     } catch (error) {
       console.error("Transaction failed", error);
-      alert("Failed to save transaction.");
+      toast.error("Failed to save transaction.");
       setIsSaving(false);
     }
   };
@@ -217,7 +218,7 @@ function AddTransactionModal({ isOpen, onClose, initialData = null }) {
       onClose();
     } catch (error) {
       console.error("Delete failed", error);
-      alert("Failed to delete transaction.");
+      toast.error("Failed to delete transaction.");
       setIsSaving(false);
     }
   };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
@@ -105,7 +106,7 @@ function GroupDetails() {
     try {
       await update(ref(db, `groupMembers/${groupId}/${uid}`), { status: 'approved' });
     } catch (err) {
-      alert('Failed to approve');
+      toast.error('Failed to approve');
     }
   };
 
@@ -114,7 +115,7 @@ function GroupDetails() {
       await remove(ref(db, `groupMembers/${groupId}/${uid}`));
       await remove(ref(db, `userGroups/${uid}/${groupId}`));
     } catch (err) {
-      alert('Failed to reject');
+      toast.error('Failed to reject');
     }
   };
 
@@ -127,7 +128,7 @@ function GroupDetails() {
       const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(receiverInfo.name)}&am=${tx.amount}`;
       window.location.href = upiUrl;
     } else {
-      alert(`${receiverInfo?.name || 'Receiver'} hasn't set up a UPI ID yet. You can still mark it as paid manually.`);
+      toast.error(`${receiverInfo?.name || 'Receiver'} hasn't set up a UPI ID yet. You can still mark it as paid manually.`);
     }
 
     if (window.confirm(`Mark ₹${tx.amount} as paid to ${receiverInfo?.name}?`)) {
@@ -142,7 +143,7 @@ function GroupDetails() {
           createdAt: new Date().toISOString()
         });
       } catch (err) {
-        alert('Failed to mark as paid.');
+        toast.error('Failed to mark as paid.');
       }
     }
   };
@@ -154,7 +155,7 @@ function GroupDetails() {
         updatedAt: new Date().toISOString()
       });
     } catch (err) {
-      alert('Failed to update settlement status.');
+      toast.error('Failed to update settlement status.');
     }
   };
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { db } from '../firebase';
@@ -89,7 +90,7 @@ function Dashboard() {
                   pending.push(bill);
                   // Check overdue
                   if (bill.isOverdue) {
-                    alert(`🚨 URGENT: Your ${bill.accountName} bill of ₹${bill.remainingBill.toLocaleString()} is OVERDUE! Please settle it immediately to avoid penalties.`);
+                    toast(`🚨 URGENT: Your ${bill.accountName} bill of ₹${bill.remainingBill.toLocaleString()} is OVERDUE! Please settle it immediately to avoid penalties.`, { icon: '🚨', duration: 8000 });
                   }
                 }
               });

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
@@ -106,19 +107,19 @@ function CreditCardBill() {
       await update(ref(db), updates);
       window.location.reload(); // Refresh to recalculate
     } catch (err) {
-      alert('Failed to add charge');
+      toast.error('Failed to add charge');
     }
   };
 
   const handlePayBill = async (e) => {
     e.preventDefault();
     const amount = Number(payAmount);
-    if (!amount || amount <= 0 || amount > bill.remainingBill) return alert('Invalid payment amount');
-    if (!selectedBankId) return alert('Select a funding account');
+    if (!amount || amount <= 0 || amount > bill.remainingBill) return toast.error('Invalid payment amount');
+    if (!selectedBankId) return toast.error('Select a funding account');
 
     try {
       const fundingBank = fundingAccounts.find(b => b.id === selectedBankId);
-      if (amount > fundingBank.balance) return alert('Insufficient funds in the selected bank account');
+      if (amount > fundingBank.balance) return toast.error('Insufficient funds in the selected bank account');
 
       const txId = push(ref(db, `transactions/${currentUser.uid}`)).key;
       const updates = {};
@@ -143,10 +144,10 @@ function CreditCardBill() {
       updates[`accounts/${currentUser.uid}/${account.id}/balance`] = Number(account.balance) - amount;
 
       await update(ref(db), updates);
-      alert('Payment Successful! 🎉');
+      toast.success('Payment Successful! 🎉');
       navigate('/dashboard');
     } catch (err) {
-      alert('Payment failed');
+      toast.error('Payment failed');
     }
   };
 

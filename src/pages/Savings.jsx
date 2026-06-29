@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, onValue, push, update, get } from 'firebase/database';
@@ -76,14 +77,14 @@ function Savings() {
       setTargetAmount('');
     } catch (err) {
       console.error(err);
-      alert('Failed to create goal');
+      toast.error('Failed to create goal');
     }
   };
 
   const handleWithdraw = async (e) => {
     e.preventDefault();
-    if (!withdrawAmount || Number(withdrawAmount) <= 0 || !toAccountId) return alert('Invalid withdrawal');
-    if (Number(withdrawAmount) > withdrawingGoal.currentAmount) return alert('Insufficient funds in goal');
+    if (!withdrawAmount || Number(withdrawAmount) <= 0 || !toAccountId) return toast.error('Invalid withdrawal');
+    if (Number(withdrawAmount) > withdrawingGoal.currentAmount) return toast.error('Insufficient funds in goal');
 
     try {
       const numAmount = Number(withdrawAmount);
@@ -118,7 +119,7 @@ function Savings() {
       setWithdrawAmount('');
     } catch (err) {
       console.error(err);
-      alert('Failed to withdraw');
+      toast.error('Failed to withdraw');
     }
   };
 

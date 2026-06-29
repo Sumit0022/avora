@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoClose, IoCalculatorOutline, IoPersonOutline, IoPeopleOutline } from 'react-icons/io5';
 import { useCategories } from '../context/CategoryContext';
@@ -65,7 +66,7 @@ function AddGroupExpenseModal({ isOpen, onClose, groupId, members, usersInfo }) 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (splitAmong.length === 0 && !hasGuest) {
-      alert("Please select at least one person for the split.");
+      toast.error("Please select at least one person for the split.");
       return;
     }
     
@@ -101,7 +102,7 @@ function AddGroupExpenseModal({ isOpen, onClose, groupId, members, usersInfo }) 
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Failed to save group expense');
+      toast.error('Failed to save group expense');
     }
     setIsSaving(false);
   };

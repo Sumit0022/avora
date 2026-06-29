@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, onValue, push, set, remove, update } from 'firebase/database';
@@ -27,7 +28,7 @@ function Accounts() {
   const handlePayEarlySubmit = async (e) => {
     e.preventDefault();
     const amount = Number(payEarlyAmount);
-    if (!amount || amount <= 0 || amount > actionAccount.balance) return alert('Invalid amount');
+    if (!amount || amount <= 0 || amount > actionAccount.balance) return toast.error('Invalid amount');
 
     try {
       // Create a transfer transaction
@@ -52,7 +53,7 @@ function Accounts() {
       setActionAccount(null);
     } catch (err) {
       console.error(err);
-      alert('Failed to add balance');
+      toast.error('Failed to add balance');
     }
   };
 
@@ -111,7 +112,7 @@ function Accounts() {
       setEditingAccount(null);
     } catch (error) {
       console.error("Error saving account: ", error);
-      alert("Failed to save account");
+      toast.error("Failed to save account");
     }
   };
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+import { Toaster } from 'react-hot-toast';
 import './index.css';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -45,6 +46,7 @@ function App() {
 
   return (
     <>
+      <Toaster position="top-center" toastOptions={{ style: { background: 'var(--bg-glass)', color: 'var(--text-primary)', borderRadius: '16px', backdropFilter: 'blur(20px)', border: '1px solid var(--border-subtle)' } }} />
       {!hideHeader && (
         <header style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
           <Link to="/" style={{ textDecoration: 'none' }}>

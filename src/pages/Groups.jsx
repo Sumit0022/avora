@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, onValue, push, set, query, orderByChild, equalTo, get, update } from 'firebase/database';
@@ -91,7 +92,7 @@ function Groups() {
       setGroupName('');
     } catch (err) {
       console.error(err);
-      alert('Failed to create group');
+      toast.error('Failed to create group');
     }
     setIsSaving(false);
   };
@@ -151,7 +152,7 @@ function Groups() {
         
         setIsJoinModalOpen(false);
         setInviteCode('');
-        alert(`Request sent to join ${groupName}. An admin must approve you.`);
+        toast.success(`Request sent to join ${groupName}. An admin must approve you.`);
       } else {
         setJoinError('Invalid invite code');
       }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, onValue, push, update, get } from 'firebase/database';
@@ -88,7 +89,7 @@ function Subscriptions() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!name || !amount || !accountId || !nextDate) return alert('Fill all details');
+    if (!name || !amount || !accountId || !nextDate) return toast.error('Fill all details');
 
     try {
       const newRef = push(ref(db, `subscriptions/${currentUser.uid}`));
@@ -109,7 +110,7 @@ function Subscriptions() {
       resetForm();
     } catch (err) {
       console.error(err);
-      alert('Failed to save subscription');
+      toast.error('Failed to save subscription');
     }
   };
 
