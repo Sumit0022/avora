@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { IoHomeOutline, IoHome, IoWalletOutline, IoWallet, IoPeopleOutline, IoPeople, IoPersonOutline, IoPerson } from 'react-icons/io5';
@@ -6,6 +6,11 @@ import AddTransactionModal from './AddTransactionModal';
 
 function Layout() {
   const location = useLocation();
+
+  // Scroll to top on route change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   const navItems = [
     { path: '/dashboard', label: 'Home', icon: IoHomeOutline, activeIcon: IoHome },

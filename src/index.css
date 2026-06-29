@@ -124,7 +124,7 @@ input:focus {
   align-items: center;
   width: 100%;
   max-width: 400px;
-  background: var(--bg-glass);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border: 1px solid var(--border-glass);
@@ -134,6 +134,7 @@ input:focus {
 }
 
 [data-theme='dark'] .bottom-tab-bar {
+  background: rgba(28, 28, 30, 0.90);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
