@@ -1,11 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { IoHomeOutline, IoHome, IoWalletOutline, IoWallet, IoPeopleOutline, IoPeople, IoPersonOutline, IoPerson } from 'react-icons/io5';
 import AddTransactionModal from './AddTransactionModal';
+import { useAuth } from '../context/AuthContext';
+import { db } from '../firebase';
+import { ref, get } from 'firebase/database';
 
 function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
+
+  // Enforce Profile Setup
+  useEffect(() => {
+    if (currentUser) {
+      get(ref(db, `users/${currentUser.uid}`)).then(snap => {
+        if (!snap.exists()) {
+          navigate('/profile-setup');
+        }
+      }).catch(err => console.error("Error checking profile:", err));
+    }
+  }, [currentUser, navigate]);
 
   // Scroll to top on route change
   useEffect(() => {
