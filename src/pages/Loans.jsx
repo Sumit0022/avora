@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { IoChevronBack, IoAddOutline, IoCashOutline, IoPersonOutline, IoLibraryOutline } from 'react-icons/io5';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, onValue } from 'firebase/database';
@@ -13,6 +13,7 @@ function Loans() {
   const [loans, setLoans] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showSettled, setShowSettled] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -94,6 +95,46 @@ function Loans() {
               </motion.div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {loans.filter(l => l.status === 'closed').length > 0 && (
+        <div style={{ marginTop: '40px' }}>
+          <button onClick={() => setShowSettled(!showSettled)} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+            {showSettled ? 'Hide' : 'See'} Settled Loans
+          </button>
+          
+          <AnimatePresence>
+            {showSettled && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden', marginTop: '15px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  {loans.filter(l => l.status === 'closed').map(loan => (
+                    <Link key={loan.id} to={`/loans/${loan.id}`} style={{ textDecoration: 'none' }}>
+                      <motion.div whileTap={{ scale: 0.98 }} style={{ background: 'var(--bg-secondary)', padding: '20px', borderRadius: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.7 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                          <div style={{ width: '45px', height: '45px', borderRadius: '12px', background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
+                            {getCategoryIcon(loan.category)}
+                          </div>
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>{loan.personName}</h4>
+                            <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>
+                              {loan.type === 'given' ? 'You lent' : 'You borrowed'} • SETTLED
+                            </p>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            ₹{Number(loan.principalAmount).toLocaleString('en-IN')}
+                          </p>
+                          <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>Closed</p>
+                        </div>
+                      </motion.div>
+                    </Link>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 

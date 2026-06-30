@@ -51,6 +51,14 @@ function AddLoanModal({ isOpen, onClose }) {
     }
   }, [isOpen, currentUser]);
 
+  useEffect(() => {
+    if (type === 'given') {
+      setCategory('Informal');
+    } else if (type === 'taken' && category === 'Informal') {
+      setCategory('Bank');
+    }
+  }, [type]);
+
   const calculateEMI = () => {
     const P = Number(principal);
     const n = Number(duration);
@@ -198,7 +206,7 @@ function AddLoanModal({ isOpen, onClose }) {
                   <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}><IoWalletOutline size={16} style={{transform: 'translateY(3px)'}} /> Account for Disbursement</label>
                   <select value={accountId} onChange={e => setAccountId(e.target.value)} required={!isOngoing} style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', outline: 'none', WebkitAppearance: 'none' }}>
                     <option value="" disabled>Select personal account...</option>
-                    {accounts.map(acc => (
+                    {accounts.filter(acc => category === 'Credit Card' ? acc.type === 'Credit Card' : true).map(acc => (
                       <option key={acc.id} value={acc.id}>{acc.name} (₹{acc.type === 'Credit Card' ? Number(acc.creditLimit || 0) - Number(acc.balance || 0) : acc.balance})</option>
                     ))}
                   </select>
@@ -207,12 +215,19 @@ function AddLoanModal({ isOpen, onClose }) {
 
               {/* Category */}
               <div style={{ display: 'flex', gap: '10px' }}>
-                {['Bank', 'Credit Card', 'Informal'].map(cat => (
-                  <button key={cat} type="button" onClick={() => setCategory(cat)} style={{ flex: 1, padding: '10px', borderRadius: '12px', border: '1px solid', borderColor: category === cat ? 'var(--text-primary)' : 'var(--border-subtle)', background: category === cat ? 'var(--text-primary)' : 'transparent', color: category === cat ? 'var(--bg-primary)' : 'var(--text-primary)', fontWeight: 600, transition: '0.2s', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '5px' }}>
-                    {cat === 'Bank' ? <IoBriefcaseOutline /> : cat === 'Credit Card' ? <IoCardOutline /> : <IoPersonOutline />}
-                    {cat}
+                {type === 'taken' ? (
+                  ['Bank', 'Credit Card', 'Informal'].map(cat => (
+                    <button key={cat} type="button" onClick={() => setCategory(cat)} style={{ flex: 1, padding: '10px', borderRadius: '12px', border: '1px solid', borderColor: category === cat ? 'var(--text-primary)' : 'var(--border-subtle)', background: category === cat ? 'var(--text-primary)' : 'transparent', color: category === cat ? 'var(--bg-primary)' : 'var(--text-primary)', fontWeight: 600, transition: '0.2s', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '5px' }}>
+                      {cat === 'Bank' ? <IoBriefcaseOutline /> : cat === 'Credit Card' ? <IoCardOutline /> : <IoPersonOutline />}
+                      {cat}
+                    </button>
+                  ))
+                ) : (
+                  <button type="button" style={{ flex: 1, padding: '10px', borderRadius: '12px', border: '1px solid var(--text-primary)', background: 'var(--text-primary)', color: 'var(--bg-primary)', fontWeight: 600, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '5px' }}>
+                    <IoPersonOutline />
+                    Informal
                   </button>
-                ))}
+                )}
               </div>
 
               <div>
