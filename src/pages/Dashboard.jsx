@@ -55,12 +55,21 @@ function Dashboard() {
     fetchProfile();
 
     const accountsRef = ref(db, `accounts/${currentUser.uid}`);
+    const loansRef = ref(db, `loans/${currentUser.uid}`);
+
+    let accountsTotal = 0;
+    let loansTotal = 0;
+
+    const calculateNetWorth = () => {
+      setNetWorth(accountsTotal + loansTotal);
+    };
+
     const unsubAccounts = onValue(accountsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         const accList = Object.keys(data).map(k => ({ id: k, ...data[k] }));
-        const total = accList.reduce((acc, curr) => curr.type === 'Credit Card' ? acc - Number(curr.balance || 0) : acc + Number(curr.balance || 0), 0);
-        setNetWorth(total);
+        accountsTotal = accList.reduce((acc, curr) => curr.type === 'Credit Card' ? acc - Number(curr.balance || 0) : acc + Number(curr.balance || 0), 0);
+        calculateNetWorth();
 
         const hasCC = accList.some(a => a.type === 'Credit Card');
         if (hasCC) {
@@ -81,8 +90,33 @@ function Dashboard() {
           });
         }
       } else {
-        setNetWorth(0);
+        accountsTotal = 0;
+        calculateNetWorth();
       }
+    });
+
+    const unsubLoans = onValue(loansRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const loanList = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+        let lTotal = 0;
+        loanList.forEach(loan => {
+          if (loan.status === 'active') {
+            const principal = Number(loan.outstandingPrincipal || loan.principalAmount || 0);
+            if (loan.type === 'given') {
+              lTotal += principal;
+            } else if (loan.type === 'taken') {
+              if (loan.category !== 'Credit Card') {
+                lTotal -= principal;
+              }
+            }
+          }
+        });
+        loansTotal = lTotal;
+      } else {
+        loansTotal = 0;
+      }
+      calculateNetWorth();
     });
 
     const txRef = query(ref(db, `transactions/${currentUser.uid}`), orderByChild('createdAt'), limitToLast(5));
@@ -97,7 +131,7 @@ function Dashboard() {
       setLoading(false);
     });
 
-    return () => { unsubAccounts(); unsubTx(); };
+    return () => { unsubAccounts(); unsubLoans(); unsubTx(); };
   }, [currentUser, navigate]);
 
 
