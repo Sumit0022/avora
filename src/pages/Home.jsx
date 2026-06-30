@@ -168,7 +168,7 @@ function Home() {
             <p style={{ fontSize: '1.1rem', color: '#52525b', maxWidth: '600px', margin: '0 auto' }}>Designed meticulously to give you perfect control over personal and shared finances.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+          <div className="bento-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
             
             {/* Bento 1 */}
             <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }} style={{ background: '#fff', borderRadius: '32px', padding: '40px', boxShadow: '0 10px 40px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.03)', gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative', overflow: 'hidden' }}>
@@ -252,6 +252,13 @@ function Home() {
           }
           .bento-img {
             display: none;
+          }
+          .bento-container {
+            grid-template-columns: 1fr !important;
+          }
+          .bento-container > div {
+            grid-column: span 1 !important;
+            padding: 24px !important;
           }
         }
         @media (max-width: 480px) {
