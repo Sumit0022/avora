@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, onValue, get, update, remove, push } from 'firebase/database';
@@ -630,17 +630,21 @@ function GroupDetails() {
   return (
     <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', paddingBottom: '100px' }}>
       
-      <div style={{ padding: '20px', position: 'sticky', top: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(20px)', zIndex: 100 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-          <button onClick={() => navigate('/groups')} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '1rem', fontWeight: 600, color: 'var(--brand-primary)', cursor: 'pointer' }}>
-            <IoChevronBack size={20} /> Groups
-          </button>
-        </div>
-        <h2 style={{ fontSize: '2rem', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>{group.name}</h2>
-        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', background: 'var(--bg-secondary)', padding: '4px 10px', borderRadius: '12px', marginTop: '5px', display: 'inline-block' }}>{group.type}</span>
+      <div className="container" style={{ paddingTop: '20px', paddingBottom: '15px', position: 'sticky', top: 0, background: 'var(--bg-primary)', zIndex: 100 }}>
+        <header style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <Link to="/groups" style={{ color: 'var(--text-primary)' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <IoChevronBack size={24} />
+            </div>
+          </Link>
+          <div>
+            <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>{group.name}</h2>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', background: 'var(--bg-secondary)', padding: '2px 8px', borderRadius: '12px', marginTop: '4px', display: 'inline-block' }}>{group.type}</span>
+          </div>
+        </header>
       </div>
 
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', padding: '0 20px', position: 'sticky', top: '120px', backgroundColor: 'var(--bg-primary)', zIndex: 99 }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', padding: '0 20px', position: 'sticky', top: '75px', backgroundColor: 'var(--bg-primary)', zIndex: 99 }}>
         {['timeline', 'balances', 'stats', 'settings'].map(tab => (
           <button 
             key={tab} onClick={() => setActiveTab(tab)}

@@ -137,26 +137,29 @@ function Transactions() {
   return (
     <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', paddingBottom: '100px' }}>
       
-      <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(10px)', zIndex: 100 }}>
-        <button onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '1rem', fontWeight: 600, color: 'var(--brand-primary)', cursor: 'pointer' }}>
-          <IoChevronBack size={20} /> Home
-        </button>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button 
-            onClick={() => window.dispatchEvent(new Event('openGlobalSearch'))}
-            style={{ background: 'var(--bg-secondary)', border: 'none', width: '36px', height: '36px', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', color: 'var(--text-primary)' }}
-          >
-            <IoSearchOutline size={18} />
-          </button>
-          <button onClick={() => setShowFilterModal(true)} style={{ background: 'var(--bg-secondary)', border: 'none', padding: '8px 12px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
-            <IoFilterOutline size={18} /> Filters
-          </button>
-        </div>
-      </div>
-
-      <div className="container" style={{ paddingTop: '10px' }}>
-        <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '5px' }}>All Transactions</h2>
-        <p style={{fontSize: '0.8rem', color: 'var(--text-tertiary)', marginBottom: '20px'}}>Long-press a transaction to edit or delete.</p>
+      <div className="container" style={{ paddingTop: '20px' }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <Link to="/dashboard" style={{ color: 'var(--text-primary)' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <IoChevronBack size={24} />
+              </div>
+            </Link>
+            <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0 }}>All Transactions</h2>
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={() => window.dispatchEvent(new Event('openGlobalSearch'))}
+              style={{ background: 'var(--bg-secondary)', border: 'none', width: '36px', height: '36px', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', color: 'var(--text-primary)' }}
+            >
+              <IoSearchOutline size={18} />
+            </button>
+            <button onClick={() => setShowFilterModal(true)} style={{ background: 'var(--bg-secondary)', border: 'none', padding: '8px 12px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
+              <IoFilterOutline size={18} /> Filters
+            </button>
+          </div>
+        </header>
+        <p style={{fontSize: '0.8rem', color: 'var(--text-tertiary)', marginBottom: '20px', marginLeft: '55px'}}>Long-press a transaction to edit or delete.</p>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
           {typeFilter !== 'all' && <div style={{ background: 'var(--brand-primary)', color: 'white', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600 }}>Type: {typeFilter}</div>}

@@ -5,7 +5,7 @@ import { ref, onValue } from 'firebase/database';
 import { motion } from 'framer-motion';
 import { useCategories } from '../context/CategoryContext';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { IoChevronBack } from 'react-icons/io5';
 
 function Budgets() {
@@ -77,15 +77,15 @@ function Budgets() {
 
   return (
     <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', paddingBottom: '100px' }}>
-      {/* Custom Minimal Header */}
-      <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(10px)', zIndex: 100 }}>
-        <button onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '1rem', fontWeight: 600, color: 'var(--brand-primary)', cursor: 'pointer' }}>
-          <IoChevronBack size={20} /> Home
-        </button>
-      </div>
-
-      <div className="container" style={{ paddingTop: '10px' }}>
-        <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '20px' }}>Budget Insights</h2>
+      <div className="container" style={{ paddingTop: '20px' }}>
+        <header style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' }}>
+          <Link to="/dashboard" style={{ color: 'var(--text-primary)' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <IoChevronBack size={24} />
+            </div>
+          </Link>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0 }}>Budget Insights</h2>
+        </header>
       
       {/* Period Selector */}
       <div style={{ display: 'flex', background: 'var(--bg-secondary)', borderRadius: '16px', padding: '5px', marginBottom: '30px' }}>

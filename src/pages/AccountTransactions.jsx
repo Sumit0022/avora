@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, onValue, get } from 'firebase/database';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { IoChevronBack } from 'react-icons/io5';
 import { useCategories } from '../context/CategoryContext';
 import { motion } from 'framer-motion';
@@ -66,14 +66,17 @@ function AccountTransactions() {
   return (
     <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', paddingBottom: '100px' }}>
       
-      {/* Custom Minimal Header */}
-      <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(10px)', zIndex: 100 }}>
-        <button onClick={() => navigate('/accounts')} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '1rem', fontWeight: 600, color: 'var(--brand-primary)', cursor: 'pointer' }}>
-          <IoChevronBack size={20} /> Wallet
-        </button>
-      </div>
+      <div className="container" style={{ paddingTop: '20px' }}>
+        <header style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+          <Link to="/accounts" style={{ color: 'var(--text-primary)' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <IoChevronBack size={24} />
+            </div>
+          </Link>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0 }}>Wallet</h2>
+        </header>
 
-      <div className="container" style={{ paddingTop: '10px' }}>
+      <div style={{ paddingTop: '10px' }}>
         {account && (
           <div style={{ marginBottom: '30px', textAlign: 'center' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 5px 0' }}>{account.name}</h2>

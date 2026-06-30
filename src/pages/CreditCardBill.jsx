@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, get, push, update } from 'firebase/database';
@@ -159,9 +159,11 @@ function CreditCardBill() {
       
       {/* Sleek CRED-style Header */}
       <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(20px)', zIndex: 100 }}>
-        <button onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '1rem', fontWeight: 600, color: 'white', cursor: 'pointer' }}>
-          <IoChevronBack size={20} /> Back
-        </button>
+        <Link to="/dashboard" style={{ color: 'white', textDecoration: 'none' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <IoChevronBack size={24} />
+          </div>
+        </Link>
         <span style={{ fontWeight: 600, opacity: 0.8 }}>Clear your dues</span>
       </div>
 

@@ -6,7 +6,7 @@ import { ref, onValue, push, update, get } from 'firebase/database';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoAddOutline, IoCloseOutline, IoWalletOutline } from 'react-icons/io5';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { IoChevronBack } from 'react-icons/io5';
 
 function Savings() {
@@ -125,20 +125,20 @@ function Savings() {
 
   return (
     <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', paddingBottom: '100px' }}>
-      {/* Custom Minimal Header */}
-      <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(10px)', zIndex: 100 }}>
-        <button onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '1rem', fontWeight: 600, color: 'var(--brand-primary)', cursor: 'pointer' }}>
-          <IoChevronBack size={20} /> Home
-        </button>
-      </div>
-
-      <div className="container" style={{ paddingTop: '10px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-          <h2 style={{ fontSize: '2rem', fontWeight: 800 }}>Savings Goals</h2>
+      <div className="container" style={{ paddingTop: '20px' }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <Link to="/dashboard" style={{ color: 'var(--text-primary)' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <IoChevronBack size={24} />
+              </div>
+            </Link>
+            <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0 }}>Savings Goals</h2>
+          </div>
           <button onClick={() => setIsAdding(true)} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '16px', display: 'flex', gap: '5px', alignItems: 'center' }}>
             <IoAddOutline size={20}/> New Goal
           </button>
-        </div>
+        </header>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
         {goals.map(goal => {
