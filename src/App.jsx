@@ -29,12 +29,17 @@ function App() {
   const location = useLocation();
 
   useEffect(() => {
+    let hiddenTime = 0;
+    
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        // We set locked when they leave the app (if they have a PIN, LockScreen handles checking)
-        // A slight delay so it doesn't lock if they just switch tabs for 1 second?
-        // Actually, instant lock is safest for privacy.
-        setIsLocked(true);
+        hiddenTime = Date.now();
+      } else if (document.visibilityState === 'visible') {
+        // 30 seconds grace period
+        if (hiddenTime && (Date.now() - hiddenTime > 30000)) {
+          setIsLocked(true);
+        }
+        hiddenTime = 0;
       }
     };
     
