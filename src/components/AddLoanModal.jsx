@@ -113,13 +113,19 @@ function AddLoanModal({ isOpen, onClose }) {
       let finalOutstanding = Number(principal);
       const autoRepayments = {};
 
-      if (isOngoing && category === 'Credit Card' && selectedAcc && selectedAcc.type === 'Credit Card') {
-        const billingDateNum = Number(selectedAcc.billingDate) || 1;
+      if (isOngoing && startDate) {
+        let emiDateNum = 1;
+        if (category === 'Credit Card' && selectedAcc && selectedAcc.type === 'Credit Card') {
+          emiDateNum = Number(selectedAcc.billingDate) || 1;
+        } else {
+          emiDateNum = new Date(startDate).getDate();
+        }
+
         const start = new Date(startDate);
         const today = new Date();
         
-        let checkDate = new Date(start.getFullYear(), start.getMonth(), billingDateNum);
-        if (start.getDate() > billingDateNum) {
+        let checkDate = new Date(start.getFullYear(), start.getMonth(), emiDateNum);
+        if (start.getDate() > emiDateNum) {
           checkDate.setMonth(checkDate.getMonth() + 1);
         }
 
@@ -137,6 +143,11 @@ function AddLoanModal({ isOpen, onClose }) {
              const totalInterest = Number(principal) * r_annual * (Number(duration) / 12);
              interestComponent = totalInterest / Number(duration);
              principalComponent = emi - interestComponent;
+           }
+
+           if (finalOutstanding <= 0) break;
+           if (principalComponent > finalOutstanding) {
+             principalComponent = finalOutstanding;
            }
 
            autoRepayments[repId] = {
@@ -256,6 +267,54 @@ function AddLoanModal({ isOpen, onClose }) {
   };
 
   const emiPreview = calculateEMI();
+  
+  let liveOutstanding = Number(principal) || 0;
+  let livePaidEMIs = 0;
+  let livePaidAmount = 0;
+
+  if (isOngoing && principal && duration && startDate) {
+     const selectedAcc = accounts.find(a => a.id === accountId);
+     let emiDateNum = 1;
+     if (category === 'Credit Card' && selectedAcc && selectedAcc.type === 'Credit Card') {
+       emiDateNum = Number(selectedAcc.billingDate) || 1;
+     } else {
+       emiDateNum = new Date(startDate).getDate();
+     }
+
+     const start = new Date(startDate);
+     const today = new Date();
+     let checkDate = new Date(start.getFullYear(), start.getMonth(), emiDateNum);
+     if (start.getDate() > emiDateNum) {
+       checkDate.setMonth(checkDate.getMonth() + 1);
+     }
+
+     while (checkDate <= today) {
+       let interestComponent = 0;
+       let principalComponent = emiPreview;
+       
+       if (interestType === 'reducing' && Number(interestRate) > 0) {
+         const r_monthly = (Number(interestRate) / 100) / 12;
+         interestComponent = liveOutstanding * r_monthly;
+         principalComponent = emiPreview - interestComponent;
+       } else if (interestType === 'flat' && Number(interestRate) > 0) {
+         const r_annual = Number(interestRate) / 100;
+         const totalInterest = Number(principal) * r_annual * (Number(duration) / 12);
+         interestComponent = totalInterest / Number(duration);
+         principalComponent = emiPreview - interestComponent;
+       }
+
+       if (liveOutstanding <= 0) break;
+       if (principalComponent > liveOutstanding) {
+         principalComponent = liveOutstanding;
+       }
+
+       liveOutstanding -= principalComponent;
+       livePaidEMIs++;
+       livePaidAmount += emiPreview;
+       checkDate.setMonth(checkDate.getMonth() + 1);
+     }
+     liveOutstanding = Math.max(0, liveOutstanding);
+  }
   
   const searchResults = searchQuery.trim().length > 0 ? allUsers.filter(u => 
     u.uid !== currentUser.uid && 
@@ -435,6 +494,19 @@ function AddLoanModal({ isOpen, onClose }) {
                   <p style={{ margin: '0 0 5px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Calculated Monthly EMI</p>
                   <h2 style={{ margin: 0, fontSize: '2rem', color: 'var(--brand-primary)' }}>₹{emiPreview.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</h2>
                   <p style={{ margin: '5px 0 0', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Based on NBFC standard formula</p>
+                  
+                  {isOngoing && livePaidEMIs > 0 && (
+                    <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--border-subtle)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                       <div>
+                         <p style={{ margin: '0 0 5px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>EMIs Paid So Far</p>
+                         <h4 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--success)' }}>{livePaidEMIs} <span style={{fontSize: '0.8rem'}}>(₹{livePaidAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })})</span></h4>
+                       </div>
+                       <div>
+                         <p style={{ margin: '0 0 5px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Adjusted Principal</p>
+                         <h4 style={{ margin: 0, fontSize: '1.2rem', color: '#FF9500' }}>₹{liveOutstanding.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</h4>
+                       </div>
+                    </div>
+                  )}
                 </div>
               )}
 
