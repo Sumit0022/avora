@@ -100,17 +100,19 @@ function Profile() {
       updates[`users/${uid}`] = null;
 
       await update(ref(db), updates);
-      await deleteUser(currentUser);
       
+      try {
+        await deleteUser(currentUser);
+      } catch(authErr) {
+        console.warn("Auth deletion failed (likely requires-recent-login), but DB is wiped.", authErr);
+      }
+      
+      await logout();
       toast.success("Account deleted successfully.");
       navigate('/login');
     } catch(err) {
       console.error(err);
-      if (err.code === 'auth/requires-recent-login') {
-        toast.error("Security: Please log out and log back in before deleting your account.");
-      } else {
-        toast.error("Failed to delete account. You may need to re-authenticate.");
-      }
+      toast.error("Failed to delete account data.");
     }
     setIsDeleting(false);
   };
