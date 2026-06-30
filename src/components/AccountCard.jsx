@@ -9,6 +9,10 @@ export const cardColors = [
   { id: 'gold', background: 'linear-gradient(135deg, #42350A 0%, #A98C17 100%)' },
   { id: 'obsidian', background: 'linear-gradient(135deg, #111 0%, #333 100%)' },
   { id: 'ruby', background: 'linear-gradient(135deg, #420A0A 0%, #A91717 100%)' },
+  { id: 'teal', background: 'linear-gradient(135deg, #0A4240 0%, #17A9A3 100%)' },
+  { id: 'magenta', background: 'linear-gradient(135deg, #420A23 0%, #E0176D 100%)' },
+  { id: 'midnight', background: 'linear-gradient(135deg, #090B10 0%, #1A213B 100%)' },
+  { id: 'rose', background: 'linear-gradient(135deg, #421118 0%, #D45464 100%)' },
 ];
 
 function AccountCard({ 
