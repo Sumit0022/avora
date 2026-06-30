@@ -21,6 +21,20 @@ function Loans() {
   const [selectedAccounts, setSelectedAccounts] = useState({});
   const [processingId, setProcessingId] = useState(null);
 
+  // Long press / Edit / Delete state
+  const [pressTimer, setPressTimer] = useState(null);
+  const [isLongPressTriggered, setIsLongPressTriggered] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState(null);
+  
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [showBioAuthModal, setShowBioAuthModal] = useState(false);
+  const [bioAction, setBioAction] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  const [editPrincipal, setEditPrincipal] = useState('');
+  const [editInterestRate, setEditInterestRate] = useState('');
+  const [editDuration, setEditDuration] = useState('');
+
   useEffect(() => {
     if (!currentUser) return;
     const loansRef = ref(db, `loans/${currentUser.uid}`);
@@ -152,6 +166,110 @@ function Loans() {
     setProcessingId(null);
   };
 
+  const handlePressStart = (loan) => {
+    if (loan.linkedUserId) return; // Cannot edit active P2P loans
+    setIsLongPressTriggered(false);
+    const timer = setTimeout(() => {
+      setSelectedLoan(loan);
+      setEditPrincipal(loan.outstandingPrincipal || loan.principalAmount);
+      setEditInterestRate(loan.interestRate || 0);
+      setEditDuration(loan.durationMonths || 0);
+      setShowActionModal(true);
+      setIsLongPressTriggered(true);
+    }, 600);
+    setPressTimer(timer);
+  };
+
+  const handlePressEnd = () => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      setPressTimer(null);
+    }
+  };
+
+  const handleBioSuccess = () => {
+    setShowBioAuthModal(false);
+    if (bioAction === 'edit') {
+      setShowEditModal(true);
+    } else if (bioAction === 'delete') {
+      executeDeleteLoan();
+    }
+  };
+
+  const executeDeleteLoan = async () => {
+    try {
+      const updates = {};
+      updates[`loans/${currentUser.uid}/${selectedLoan.id}/status`] = 'deleted';
+      
+      const { get, update } = require('firebase/database');
+      if (selectedLoan.category === 'Credit Card' && selectedLoan.accountId) {
+        const accSnap = await get(ref(db, `accounts/${currentUser.uid}/${selectedLoan.accountId}`));
+        if (accSnap.exists()) {
+          const acc = accSnap.val();
+          if (acc.type === 'Credit Card') {
+            updates[`accounts/${currentUser.uid}/${selectedLoan.accountId}/balance`] = Number(acc.balance) - Number(selectedLoan.outstandingPrincipal);
+          }
+        }
+      }
+      
+      await update(ref(db), updates);
+      toast.success("Loan deleted (Prospective)");
+    } catch (err) {
+      toast.error("Failed to delete loan");
+    }
+  };
+
+  const handleEditLoan = async (e) => {
+    e.preventDefault();
+    try {
+      const updates = {};
+      const oldOutstanding = Number(selectedLoan.outstandingPrincipal);
+      const newOutstanding = Number(editPrincipal);
+      
+      let newEmi = 0;
+      const P = newOutstanding;
+      const r = Number(editInterestRate);
+      const n = Number(editDuration);
+      
+      if (n > 0) {
+        if (selectedLoan.interestType === 'flat') {
+          const totalInterest = P * (r / 100) * (n / 12);
+          newEmi = (P + totalInterest) / n;
+        } else if (selectedLoan.interestType === 'reducing') {
+          const r_monthly = (r / 100) / 12;
+          if (r_monthly > 0) {
+            newEmi = P * r_monthly * Math.pow(1 + r_monthly, n) / (Math.pow(1 + r_monthly, n) - 1);
+          } else {
+            newEmi = P / n;
+          }
+        }
+      }
+      
+      updates[`loans/${currentUser.uid}/${selectedLoan.id}/outstandingPrincipal`] = newOutstanding;
+      updates[`loans/${currentUser.uid}/${selectedLoan.id}/interestRate`] = r;
+      updates[`loans/${currentUser.uid}/${selectedLoan.id}/durationMonths`] = n;
+      updates[`loans/${currentUser.uid}/${selectedLoan.id}/emiAmount`] = newEmi > 0 ? Number(newEmi.toFixed(2)) : 0;
+
+      const { get, update } = require('firebase/database');
+      if (selectedLoan.category === 'Credit Card' && selectedLoan.accountId && oldOutstanding !== newOutstanding) {
+        const diff = newOutstanding - oldOutstanding;
+        const accSnap = await get(ref(db, `accounts/${currentUser.uid}/${selectedLoan.accountId}`));
+        if (accSnap.exists()) {
+          const acc = accSnap.val();
+          if (acc.type === 'Credit Card') {
+            updates[`accounts/${currentUser.uid}/${selectedLoan.accountId}/balance`] = Number(acc.balance) + diff;
+          }
+        }
+      }
+
+      await update(ref(db), updates);
+      setShowEditModal(false);
+      toast.success("Loan updated (Prospective)");
+    } catch(err) {
+      toast.error("Failed to update loan");
+    }
+  };
+
   const handleRejectRequest = async (reqId) => {
     setProcessingId(reqId);
     try {
@@ -242,7 +360,22 @@ function Loans() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           {loans.filter(l => l.status === 'active').map(loan => (
-            <Link key={loan.id} to={`/loans/${loan.id}`} style={{ textDecoration: 'none' }}>
+            <div 
+              key={loan.id} 
+              onMouseDown={() => handlePressStart(loan)}
+              onMouseUp={handlePressEnd}
+              onMouseLeave={handlePressEnd}
+              onTouchStart={() => handlePressStart(loan)}
+              onTouchEnd={handlePressEnd}
+              onClick={() => {
+                if (isLongPressTriggered) {
+                  setIsLongPressTriggered(false);
+                  return;
+                }
+                navigate(`/loans/${loan.id}`);
+              }}
+              style={{ textDecoration: 'none', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
+            >
               <motion.div whileTap={{ scale: 0.98 }} style={{ background: 'var(--bg-secondary)', padding: '20px', borderRadius: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                   <div style={{ width: '45px', height: '45px', borderRadius: '12px', background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: loan.type === 'given' ? 'var(--success)' : 'var(--danger)' }}>
@@ -262,7 +395,7 @@ function Loans() {
                   <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>Outstanding</p>
                 </div>
               </motion.div>
-            </Link>
+            </div>
           ))}
         </div>
       )}
