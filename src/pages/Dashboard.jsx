@@ -6,7 +6,7 @@ import { db } from '../firebase';
 import { ref, get, child, onValue, query, orderByChild, limitToLast, remove, update } from 'firebase/database';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCategories } from '../context/CategoryContext';
-import { IoChevronForward, IoPieChart, IoCalendar, IoWalletOutline, IoEyeOutline, IoEyeOffOutline, IoPeopleOutline, IoTrashOutline, IoPencilOutline } from 'react-icons/io5';
+import { IoChevronForward, IoPieChart, IoCalendar, IoWalletOutline, IoEyeOutline, IoEyeOffOutline, IoPeopleOutline, IoTrashOutline, IoPencilOutline, IoDocumentTextOutline } from 'react-icons/io5';
 import AddTransactionModal from '../components/AddTransactionModal';
 import { processRecurringSubscriptions } from '../utils/subscriptions';
 import { useLongPress } from 'use-long-press';
@@ -217,13 +217,16 @@ function Dashboard() {
             <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '5px' }}>Subscriptions</h3>
           </div>
         </Link>
-        <Link to="/savings" style={{ textDecoration: 'none', gridColumn: '1 / -1' }}>
-          <div className="panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '20px', cursor: 'pointer' }}>
-            <div style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: 'rgba(52, 199, 89, 0.1)', color: 'var(--success)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}><IoWalletOutline size={28} /></div>
-            <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>Savings Goals</h3>
-            </div>
-            <IoChevronForward style={{ marginLeft: 'auto', color: 'var(--text-tertiary)' }} size={24} />
+        <Link to="/savings" style={{ textDecoration: 'none' }}>
+          <div className="panel" style={{ minHeight: '160px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', cursor: 'pointer' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'rgba(52, 199, 89, 0.1)', color: 'var(--success)', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '15px' }}><IoWalletOutline size={32} /></div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '5px' }}>Savings Goals</h3>
+          </div>
+        </Link>
+        <Link to="/reports" style={{ textDecoration: 'none' }}>
+          <div className="panel" style={{ minHeight: '160px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', cursor: 'pointer' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'rgba(175, 82, 222, 0.1)', color: '#AF52DE', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '15px' }}><IoDocumentTextOutline size={32} /></div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '5px' }}>Reports</h3>
           </div>
         </Link>
       </div>

@@ -13,6 +13,7 @@ import Savings from './pages/Savings';
 import Budgets from './pages/Budgets';
 import Subscriptions from './pages/Subscriptions';
 import Transactions from './pages/Transactions';
+import Reports from './pages/Reports';
 import CreditCardBill from './pages/CreditCardBill';
 import AccountTransactions from './pages/AccountTransactions';
 import Profile from './pages/Profile';
@@ -110,6 +111,7 @@ function App() {
             <Route path="/budgets" element={<Budgets />} />
             <Route path="/subscriptions" element={<Subscriptions />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/credit-bill/:accountId" element={<CreditCardBill />} />
             <Route path="/account-transactions/:accountId" element={<AccountTransactions />} />
           </Route>
