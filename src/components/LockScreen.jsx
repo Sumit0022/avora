@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IoBackspaceOutline } from 'react-icons/io5';
+import { IoBackspaceOutline, IoFingerPrintOutline } from 'react-icons/io5';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, get } from 'firebase/database';
@@ -9,19 +9,56 @@ function LockScreen({ isLocked, onUnlock }) {
   const { currentUser } = useAuth();
   const [pin, setPin] = useState('');
   const [savedPin, setSavedPin] = useState(null);
+  const [biometricId, setBiometricId] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Use localStorage as a quick cache to avoid showing the screen while fetching if no pin exists
+  const triggerBiometric = async (bId) => {
+    try {
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+      
+      const rawIdStr = atob(bId);
+      const rawIdBuffer = new Uint8Array(rawIdStr.length);
+      for (let i = 0; i < rawIdStr.length; i++) {
+        rawIdBuffer[i] = rawIdStr.charCodeAt(i);
+      }
+
+      await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          rpId: window.location.hostname,
+          allowCredentials: [{
+            id: rawIdBuffer,
+            type: 'public-key'
+          }],
+          userVerification: "required"
+        }
+      });
+      onUnlock();
+    } catch (err) {
+      console.error(err);
+      setError("Biometric failed. Enter PIN.");
+    }
+  };
+
   useEffect(() => {
     if (!currentUser) return;
-    const fetchPin = async () => {
+    const fetchSettings = async () => {
       try {
-        const snap = await get(ref(db, `users/${currentUser.uid}/appLockPin`));
+        const snap = await get(ref(db, `users/${currentUser.uid}`));
         if (snap.exists()) {
-          setSavedPin(snap.val());
+          const data = snap.val();
+          if (data.appLockPin) {
+            setSavedPin(data.appLockPin);
+            if (data.biometricId) {
+              setBiometricId(data.biometricId);
+              triggerBiometric(data.biometricId);
+            }
+          } else {
+            onUnlock();
+          }
         } else {
-          // If no PIN is configured, unlock immediately
           onUnlock();
         }
       } catch (err) {
@@ -32,7 +69,7 @@ function LockScreen({ isLocked, onUnlock }) {
     };
     
     if (isLocked) {
-      fetchPin();
+      fetchSettings();
     }
   }, [isLocked, currentUser, onUnlock]);
 
@@ -126,7 +163,20 @@ function LockScreen({ isLocked, onUnlock }) {
               {num}
             </button>
           ))}
-          <div /> {/* Empty space for alignment */}
+          {biometricId ? (
+            <button 
+              onClick={() => triggerBiometric(biometricId)}
+              style={{ 
+                width: '75px', height: '75px', borderRadius: '50%', 
+                background: 'transparent', border: 'none', 
+                fontSize: '2.2rem', color: '#FF9500',
+                display: 'flex', justifyContent: 'center', alignItems: 'center',
+                margin: '0 auto', cursor: 'pointer'
+              }}
+            >
+              <IoFingerPrintOutline />
+            </button>
+          ) : <div />}
           <button 
             onClick={() => handlePress('0')}
             style={{ 

@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, get, update, remove } from 'firebase/database';
-import { IoPersonOutline, IoLogOutOutline, IoColorPaletteOutline, IoQrCodeOutline, IoChevronForward, IoCloseOutline, IoLockClosedOutline, IoKeypadOutline } from 'react-icons/io5';
+import { IoPersonOutline, IoLogOutOutline, IoColorPaletteOutline, IoQrCodeOutline, IoChevronForward, IoCloseOutline, IoLockClosedOutline, IoKeypadOutline, IoFingerPrintOutline } from 'react-icons/io5';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 function Profile() {
   const { currentUser, logout } = useAuth();
@@ -126,11 +127,61 @@ function Profile() {
   const handleRemovePin = async () => {
     try {
       await remove(ref(db, `users/${currentUser.uid}/appLockPin`));
-      setProfile(prev => ({ ...prev, appLockPin: null }));
+      await remove(ref(db, `users/${currentUser.uid}/biometricId`));
+      setProfile(prev => ({ ...prev, appLockPin: null, biometricId: null }));
       setIsManagePinModalOpen(false);
     } catch (err) {
       console.error(err);
       setMessage('Failed to remove PIN.');
+    }
+  };
+
+  const handleBiometricToggle = async () => {
+    if (!profile.appLockPin) {
+      return toast.error("Please set a 4-digit PIN first.");
+    }
+    
+    if (profile.biometricId) {
+      try {
+        await remove(ref(db, `users/${currentUser.uid}/biometricId`));
+        setProfile(prev => ({ ...prev, biometricId: null }));
+        toast.success("Biometric unlock disabled.");
+      } catch (err) {
+        toast.error("Failed to disable biometrics.");
+      }
+    } else {
+      try {
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+        
+        const credential = await navigator.credentials.create({
+          publicKey: {
+            challenge,
+            rp: { name: "Avora", id: window.location.hostname },
+            user: {
+              id: new Uint8Array(16),
+              name: currentUser.email,
+              displayName: profile.name || "Avora User"
+            },
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+            authenticatorSelection: {
+              authenticatorAttachment: "platform",
+              userVerification: "required"
+            },
+            timeout: 60000
+          }
+        });
+
+        const buffer = credential.rawId;
+        const base64id = btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
+        
+        await update(ref(db, `users/${currentUser.uid}`), { biometricId: base64id });
+        setProfile(prev => ({ ...prev, biometricId: base64id }));
+        toast.success("Biometric unlock enabled!");
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to setup biometrics.");
+      }
     }
   };
 
@@ -213,6 +264,38 @@ function Profile() {
           </div>
           {!profile.appLockPin && <IoChevronForward color="var(--text-tertiary)" size={20} />}
         </motion.div>
+
+        {/* Biometric Row */}
+        {profile.appLockPin && (
+          <motion.div 
+            onClick={handleBiometricToggle}
+            whileHover={{ backgroundColor: 'var(--bg-glass)' }}
+            whileTap={{ backgroundColor: 'var(--border-subtle)' }}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px', cursor: 'pointer', borderBottom: '1px solid var(--border-subtle)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <div style={{ background: 'rgba(255, 149, 0, 0.1)', padding: '8px', borderRadius: '10px' }}>
+                <IoFingerPrintOutline size={22} color="#FF9500" />
+              </div>
+              <div>
+                <span style={{ fontSize: '1.05rem', fontWeight: 600, display: 'block' }}>Biometric Unlock</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>{profile.biometricId ? 'Enabled' : 'Use Face ID / Fingerprint'}</span>
+              </div>
+            </div>
+            <div style={{ 
+              width: '50px', height: '28px', borderRadius: '14px', 
+              background: profile.biometricId ? 'var(--success)' : 'var(--bg-primary)', 
+              border: profile.biometricId ? 'none' : '2px solid var(--border-subtle)',
+              position: 'relative', transition: 'all 0.3s ease'
+            }}>
+              <div style={{
+                position: 'absolute', top: profile.biometricId ? '2px' : '0px', left: profile.biometricId ? '24px' : '0px',
+                width: '24px', height: '24px', borderRadius: '50%', background: 'white',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.2)', transition: 'all 0.3s ease'
+              }} />
+            </div>
+          </motion.div>
+        )}
 
         {/* Logout Row */}
         <motion.div 

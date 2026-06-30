@@ -10,6 +10,7 @@ import { IoChevronForward, IoPieChart, IoCalendar, IoWalletOutline, IoEyeOutline
 import AddTransactionModal from '../components/AddTransactionModal';
 import { processRecurringSubscriptions } from '../utils/subscriptions';
 import { useLongPress } from 'use-long-press';
+import PwaInstallPrompt from '../components/PwaInstallPrompt';
 
 function Dashboard() {
   const { currentUser } = useAuth();
@@ -307,6 +308,7 @@ function Dashboard() {
         )}
       </AnimatePresence>
 
+    <PwaInstallPrompt />
     </div>
   );
 }
