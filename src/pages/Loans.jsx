@@ -28,6 +28,7 @@ function Loans() {
   
   const [showActionModal, setShowActionModal] = useState(false);
   const [showBioAuthModal, setShowBioAuthModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [bioAction, setBioAction] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -192,11 +193,12 @@ function Loans() {
     if (bioAction === 'edit') {
       setShowEditModal(true);
     } else if (bioAction === 'delete') {
-      executeDeleteLoan();
+      setShowDeleteConfirmModal(true);
     }
   };
 
   const executeDeleteLoan = async () => {
+    setShowDeleteConfirmModal(false);
     try {
       const updates = {};
       updates[`loans/${currentUser.uid}/${selectedLoan.id}/status`] = 'deleted';
@@ -367,6 +369,7 @@ function Loans() {
               onMouseLeave={handlePressEnd}
               onTouchStart={() => handlePressStart(loan)}
               onTouchEnd={handlePressEnd}
+              onContextMenu={(e) => e.preventDefault()}
               onClick={() => {
                 if (isLongPressTriggered) {
                   setIsLongPressTriggered(false);
@@ -374,7 +377,7 @@ function Loans() {
                 }
                 navigate(`/loans/${loan.id}`);
               }}
-              style={{ textDecoration: 'none', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
+              style={{ textDecoration: 'none', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
             >
               <motion.div whileTap={{ scale: 0.98 }} style={{ background: 'var(--bg-secondary)', padding: '20px', borderRadius: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
