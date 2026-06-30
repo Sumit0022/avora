@@ -498,6 +498,79 @@ function Profile() {
           </div>
         )}
       </AnimatePresence>
+      {/* Delete Account Step 1 Modal */}
+      <AnimatePresence>
+        {isDeleteStep1Open && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 4000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(5px)' }}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ background: 'var(--bg-primary)', padding: '30px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center' }}>
+              <div style={{ width: '60px', height: '60px', borderRadius: '30px', background: 'rgba(255,69,58,0.1)', color: 'var(--danger)', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0 auto 20px auto' }}>
+                <IoWarningOutline size={32} />
+              </div>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.4rem', fontWeight: 800 }}>Wait, don't leave!</h3>
+              <p style={{ margin: '0 0 25px 0', color: 'var(--text-secondary)' }}>Are you sure you want to delete your account? Avora helps you manage your finances and split expenses easily. Stay with us!</p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <button onClick={() => setIsDeleteStep1Open(false)} style={{ padding: '16px', borderRadius: '16px', background: 'var(--brand-primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer' }}>I'll Stay</button>
+                <button onClick={() => { setIsDeleteStep1Open(false); setIsDeleteStep2Open(true); }} style={{ padding: '16px', borderRadius: '16px', background: 'transparent', color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Continue to Delete</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Account Step 2 Modal */}
+      <AnimatePresence>
+        {isDeleteStep2Open && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 4000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(5px)' }}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ background: 'var(--bg-primary)', padding: '30px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center' }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.4rem', fontWeight: 800, color: 'var(--danger)' }}>Final Warning</h3>
+              <p style={{ margin: '0 0 25px 0', color: 'var(--text-secondary)' }}>This action is <strong style={{color: 'var(--danger)'}}>irreversible</strong>. You will permanently lose all your accounts, transactions, goals, loans, and group memberships. You can recreate your account later, but data cannot be recovered.</p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <button onClick={() => { setIsDeleteStep2Open(false); setIsDeleteStep3Open(true); }} style={{ padding: '16px', borderRadius: '16px', background: 'rgba(255, 69, 58, 0.1)', color: 'var(--danger)', border: 'none', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer' }}>Verify & Delete</button>
+                <button onClick={() => setIsDeleteStep2Open(false)} style={{ padding: '16px', borderRadius: '16px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Biometric Verification Modal */}
+      <AnimatePresence>
+        {isDeleteStep3Open && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 5000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(10px)' }}>
+            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} style={{ background: 'var(--bg-primary)', padding: '40px 30px', borderRadius: '32px', textAlign: 'center', width: '90%', maxWidth: '340px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+              <div style={{ margin: '0 auto 20px auto', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(255, 69, 58, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 2 }}>
+                  <IoFingerPrintOutline size={48} color="var(--danger)" />
+                </motion.div>
+              </div>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.3rem', fontWeight: 700 }}>Verify Identity</h3>
+              <p style={{ margin: '0 0 30px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Scan your fingerprint to authorize account deletion.</p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <button 
+                  onClick={() => {
+                    setIsDeleteStep3Open(false);
+                    executeDeleteAccount();
+                  }} 
+                  disabled={isDeleting}
+                  style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--danger)', color: 'white', border: 'none', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', opacity: isDeleting ? 0.7 : 1 }}
+                >
+                  {isDeleting ? 'Deleting...' : 'Simulate Fingerprint Scan'}
+                </button>
+                <button 
+                  onClick={() => setIsDeleteStep3Open(false)}
+                  disabled={isDeleting}
+                  style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'transparent', color: 'var(--text-secondary)', border: 'none', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
