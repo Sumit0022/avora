@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { IoChevronBack, IoAddOutline, IoCashOutline, IoPersonOutline, IoLibraryOutline } from 'react-icons/io5';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,7 +22,7 @@ function Loans() {
   const [processingId, setProcessingId] = useState(null);
 
   // Long press / Edit / Delete state
-  const [pressTimer, setPressTimer] = useState(null);
+  const pressTimerRef = useRef(null);
   const [isLongPressTriggered, setIsLongPressTriggered] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState(null);
   
@@ -168,9 +168,12 @@ function Loans() {
   };
 
   const handlePressStart = (loan) => {
-    if (loan.linkedUserId) return; // Cannot edit active P2P loans
+    if (loan.linkedUserId) {
+      toast("Linked P2P Loans cannot be edited/deleted once acknowledged.", { icon: 'ℹ️' });
+      return; 
+    }
     setIsLongPressTriggered(false);
-    const timer = setTimeout(() => {
+    pressTimerRef.current = setTimeout(() => {
       setSelectedLoan(loan);
       setEditPrincipal(loan.outstandingPrincipal || loan.principalAmount);
       setEditInterestRate(loan.interestRate || 0);
@@ -178,13 +181,12 @@ function Loans() {
       setShowActionModal(true);
       setIsLongPressTriggered(true);
     }, 600);
-    setPressTimer(timer);
   };
 
   const handlePressEnd = () => {
-    if (pressTimer) {
-      clearTimeout(pressTimer);
-      setPressTimer(null);
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
     }
   };
 
@@ -369,9 +371,12 @@ function Loans() {
               onMouseLeave={handlePressEnd}
               onTouchStart={() => handlePressStart(loan)}
               onTouchEnd={handlePressEnd}
-              onContextMenu={(e) => e.preventDefault()}
-              onClick={() => {
+              onTouchMove={handlePressEnd}
+              onContextMenu={(e) => { e.preventDefault(); return false; }}
+              onClick={(e) => {
                 if (isLongPressTriggered) {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setIsLongPressTriggered(false);
                   return;
                 }
