@@ -690,13 +690,13 @@ function GroupDetails() {
       
       <div className="container" style={{ paddingTop: '20px', paddingBottom: '15px', position: 'sticky', top: 0, background: 'var(--bg-primary)', zIndex: 100 }}>
         <header style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <Link to="/groups" style={{ color: 'var(--text-primary)' }}>
+          <Link to="/groups" style={{ color: 'var(--text-primary)', flexShrink: 0 }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
               <IoChevronBack size={24} />
             </div>
           </Link>
-          <div>
-            <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>{group.name}</h2>
+          <div style={{ flex: 1, minWidth: 0, gap: '10px' }}>
+            <h2 style={{ fontSize: 'clamp(1.3rem, 5vw, 1.8rem)', fontWeight: 800, margin: 0, letterSpacing: '-0.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{group.name}</h2>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', background: 'var(--bg-secondary)', padding: '2px 8px', borderRadius: '12px', marginTop: '4px', display: 'inline-block' }}>{group.type}</span>
           </div>
         </header>

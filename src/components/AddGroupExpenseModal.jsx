@@ -238,7 +238,7 @@ function AddGroupExpenseModal({ isOpen, onClose, groupId, members, usersInfo }) 
                   <span style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--text-secondary)' }}>₹</span>
                   <input 
                     type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" required min="1" step="0.01"
-                    style={{ fontSize: '3rem', fontWeight: 800, width: '150px', background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', textAlign: 'left' }}
+                    style={{ fontSize: 'clamp(1.8rem, 6vw, 3rem)', fontWeight: 800, width: '150px', background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', textAlign: 'left' }}
                   />
                 </div>
               </div>

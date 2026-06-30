@@ -212,12 +212,14 @@ function Dashboard() {
       <div style={{ marginBottom: '25px' }}>
         <div className="panel" style={{ padding: '24px', background: 'var(--brand-gradient)', color: 'white', border: 'none', boxShadow: '0 10px 30px rgba(0, 113, 227, 0.3)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <h3 style={{ fontSize: '1rem', margin: 0, fontWeight: '500', opacity: 0.9 }}>Net Worth</h3>
-            <button onClick={() => setShowNetWorth(!showNetWorth)} style={{ background: 'none', border: 'none', color: 'white', opacity: 0.8, cursor: 'pointer', display: 'flex' }}>
+            <div style={{ flex: 1, minWidth: 0, gap: '10px', display: 'flex', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1rem', margin: 0, fontWeight: '500', opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Net Worth</h3>
+            </div>
+            <button onClick={() => setShowNetWorth(!showNetWorth)} style={{ background: 'none', border: 'none', color: 'white', opacity: 0.8, cursor: 'pointer', display: 'flex', flexShrink: 0 }}>
               {showNetWorth ? <IoEyeOffOutline size={20} /> : <IoEyeOutline size={20} />}
             </button>
           </div>
-          <div style={{ fontSize: '2.5rem', fontWeight: '700', marginBottom: '10px' }}>
+          <div style={{ fontSize: 'clamp(1.8rem, 6vw, 2.8rem)', fontWeight: '700', marginBottom: '10px' }}>
             {showNetWorth ? `₹${netWorth.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '₹ ••••••'}
           </div>
         </div>

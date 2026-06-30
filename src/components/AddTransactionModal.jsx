@@ -278,7 +278,7 @@ function AddTransactionModal({ isOpen, onClose, initialData = null }) {
                       type="number" value={amount} onChange={e => setAmount(e.target.value)}
                       placeholder="0" step="0.01" required autoFocus
                       style={{ 
-                        fontSize: '3.5rem', fontWeight: 800, background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', width: '200px', textAlign: 'left',
+                        fontSize: 'clamp(2rem, 7vw, 3.5rem)', fontWeight: 800, background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', width: '200px', textAlign: 'left',
                         padding: 0
                       }}
                     />

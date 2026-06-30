@@ -20,6 +20,8 @@ function Layout() {
           navigate('/profile-setup');
         }
       }).catch(err => console.error("Error checking profile:", err));
+    } else {
+      navigate('/login');
     }
   }, [currentUser, navigate]);
 
@@ -58,7 +60,8 @@ function Layout() {
         right: 0,
         display: 'flex',
         justifyContent: 'center',
-        padding: '0 20px 20px 20px',
+        padding: '0 20px',
+        paddingBottom: 'max(20px, env(safe-area-inset-bottom, 20px))',
         zIndex: 1000,
         pointerEvents: 'none' // allow clicking through empty space
       }}>

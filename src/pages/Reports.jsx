@@ -163,12 +163,14 @@ function Reports() {
   return (
     <div className="container" style={{ paddingBottom: '100px' }}>
       <header style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' }}>
-        <Link to="/dashboard" style={{ color: 'var(--text-primary)' }}>
+        <Link to="/dashboard" style={{ color: 'var(--text-primary)', flexShrink: 0 }}>
           <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             <IoChevronBack size={24} />
           </div>
         </Link>
-        <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0 }}>Reports</h2>
+        <div style={{ flex: 1, minWidth: 0, gap: '10px' }}>
+          <h2 style={{ fontSize: 'clamp(1.3rem, 5vw, 1.8rem)', fontWeight: 800, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Reports</h2>
+        </div>
       </header>
 
       <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '15px', marginBottom: '20px', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>

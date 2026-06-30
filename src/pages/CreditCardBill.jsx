@@ -255,20 +255,22 @@ function CreditCardBill() {
     }
   };
 
-  if (loading) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Loading Bill Details...</div>;
-  if (!bill) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>No bill found.</div>;
+  if (loading) return <div style={{ color: 'var(--text-primary)', textAlign: 'center', marginTop: '50px' }}>Loading Bill Details...</div>;
+  if (!bill) return <div style={{ color: 'var(--text-primary)', textAlign: 'center', marginTop: '50px' }}>No bill found.</div>;
 
   return (
-    <div style={{ backgroundColor: '#000000', minHeight: '100vh', color: 'white', paddingBottom: '100px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', color: 'var(--text-primary)', paddingBottom: '100px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
       {/* Sleek CRED-style Header */}
       <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--bg-glass)', backdropFilter: 'blur(20px)', zIndex: 100 }}>
-        <Link to="/dashboard" style={{ color: 'white', textDecoration: 'none' }}>
+        <Link to="/dashboard" style={{ color: 'var(--text-primary)', textDecoration: 'none', flexShrink: 0 }}>
           <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             <IoChevronBack size={24} />
           </div>
         </Link>
-        <span style={{ fontWeight: 600, opacity: 0.8 }}>Clear your dues</span>
+        <div style={{ flex: 1, minWidth: 0, gap: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+          <span style={{ fontWeight: 600, opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Clear your dues</span>
+        </div>
       </div>
 
       <div className="container" style={{ paddingTop: '20px', maxWidth: '500px', margin: '0 auto' }}>
@@ -279,10 +281,10 @@ function CreditCardBill() {
           style={{ textAlign: 'center', marginBottom: '40px' }}
         >
           <div style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.6, marginBottom: '10px' }}>{account.name} Bill</div>
-          <h1 style={{ fontSize: '4.5rem', fontWeight: 800, margin: 0, letterSpacing: '-2px', background: 'linear-gradient(180deg, #FFFFFF 0%, #A0A0A0 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h1 style={{ fontSize: 'clamp(2.5rem, 8vw, 4.5rem)', fontWeight: 800, margin: 0, letterSpacing: '-2px', background: 'linear-gradient(180deg, #FFFFFF 0%, #A0A0A0 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             ₹{bill.remainingBill.toLocaleString()}
           </h1>
-          <p style={{ margin: '10px 0 0', color: bill.isOverdue ? '#FF453A' : '#32D74B', fontWeight: 600, fontSize: '1.1rem' }}>
+          <p style={{ margin: '10px 0 0', color: bill.isOverdue ? 'var(--danger)' : 'var(--success)', fontWeight: 600, fontSize: '1.1rem' }}>
             {bill.isOverdue ? 'OVERDUE' : `Due on ${new Date(bill.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
           </p>
         </motion.div>
@@ -298,13 +300,13 @@ function CreditCardBill() {
             </button>
             <button 
               onClick={() => setIsPaying(true)}
-              style={{ flex: 1, padding: '20px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '20px', fontSize: '1.2rem', fontWeight: 700, cursor: 'pointer' }}
+              style={{ flex: 1, padding: '20px', background: 'rgba(255,255,255,0.1)', color: 'var(--text-primary)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '20px', fontSize: '1.2rem', fontWeight: 700, cursor: 'pointer' }}
             >
               Pay partial
             </button>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '20px', background: 'rgba(50, 215, 75, 0.1)', color: '#32D74B', borderRadius: '20px', marginBottom: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.2rem', fontWeight: 600 }}>
+          <div style={{ textAlign: 'center', padding: '20px', background: 'rgba(50, 215, 75, 0.1)', color: 'var(--success)', borderRadius: '20px', marginBottom: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.2rem', fontWeight: 600 }}>
             <IoCheckmarkCircleOutline size={28} /> All dues cleared
           </div>
         )}
@@ -313,7 +315,7 @@ function CreditCardBill() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 600, margin: 0 }}>Statement</h3>
-            <button onClick={() => setIsReconciling(true)} style={{ background: 'none', border: 'none', color: '#0A84FF', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <button onClick={() => setIsReconciling(true)} style={{ background: 'none', border: 'none', color: 'var(--brand-primary)', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <IoAddOutline size={18} /> Reconcile
             </button>
           </div>
@@ -336,13 +338,13 @@ function CreditCardBill() {
                     </div>
                     {tx.isVirtualEmi && (
                       <div style={{ fontSize: '0.75rem', marginTop: '6px' }}>
-                        <span style={{ color: '#32D74B' }}>₹{tx.principalComponent.toLocaleString('en-IN', {minimumFractionDigits: 2})} Principal</span>
+                        <span style={{ color: 'var(--success)' }}>₹{tx.principalComponent.toLocaleString('en-IN', {minimumFractionDigits: 2})} Principal</span>
                         <span style={{ margin: '0 5px', opacity: 0.5 }}>|</span>
-                        <span style={{ color: '#FF453A' }}>₹{tx.interestComponent.toLocaleString('en-IN', {minimumFractionDigits: 2})} Interest</span>
+                        <span style={{ color: 'var(--danger)' }}>₹{tx.interestComponent.toLocaleString('en-IN', {minimumFractionDigits: 2})} Interest</span>
                       </div>
                     )}
                   </div>
-                  <div style={{ fontWeight: 700, fontSize: '1.1rem', color: tx.type === 'expense' ? 'white' : '#32D74B' }}>
+                  <div style={{ fontWeight: 700, fontSize: '1.1rem', color: tx.type === 'expense' ? 'var(--text-primary)' : 'var(--success)' }}>
                     {tx.type === 'expense' ? '' : '+'}{Number(tx.amount).toLocaleString('en-IN')}
                   </div>
                 </div>
@@ -357,30 +359,30 @@ function CreditCardBill() {
       <AnimatePresence>
         {isPaying && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}>
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} style={{ background: '#1C1C1E', padding: '30px', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', width: '100%', maxWidth: '500px' }}>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} style={{ background: 'var(--bg-secondary)', padding: '30px', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', width: '100%', maxWidth: '500px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
                 <h3 style={{ margin: 0, fontSize: '1.4rem' }}>Make Payment</h3>
-                <button onClick={() => setIsPaying(false)} style={{ background: 'none', border: 'none', color: 'white', opacity: 0.5, cursor: 'pointer', fontSize: '1rem' }}>Cancel</button>
+                <button onClick={() => setIsPaying(false)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', opacity: 0.5, cursor: 'pointer', fontSize: '1rem' }}>Cancel</button>
               </div>
               
               <form onSubmit={handlePayBill} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '10px', color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>Amount</label>
-                  <div style={{ display: 'flex', alignItems: 'center', background: '#000', borderRadius: '16px', padding: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '10px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Amount</label>
+                  <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-primary)', borderRadius: '16px', padding: '15px' }}>
                     <span style={{ fontSize: '1.5rem', marginRight: '10px' }}>₹</span>
                     <input 
                       type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} 
                       max={bill.remainingBill} required step="0.01"
-                      style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '1.5rem', fontWeight: 700, width: '100%', outline: 'none' }}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: 700, width: '100%', outline: 'none' }}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '10px', color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>Pay from Bank Account</label>
+                  <label style={{ display: 'block', marginBottom: '10px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Pay from Bank Account</label>
                   <select 
                     value={selectedBankId} onChange={e => setSelectedBankId(e.target.value)} required 
-                    style={{ width: '100%', padding: '15px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: '#000', color: 'white', fontSize: '1.1rem', outline: 'none', WebkitAppearance: 'none' }}
+                    style={{ width: '100%', padding: '15px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '1.1rem', outline: 'none', WebkitAppearance: 'none' }}
                   >
                     <option value="" disabled>Select Bank</option>
                     {fundingAccounts.map(b => (
@@ -402,22 +404,22 @@ function CreditCardBill() {
       <AnimatePresence>
         {isReconciling && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ background: '#1C1C1E', padding: '30px', borderRadius: '24px', width: '90%', maxWidth: '400px' }}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ background: 'var(--bg-secondary)', padding: '30px', borderRadius: '24px', width: '90%', maxWidth: '400px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                 <h3 style={{ margin: 0 }}>Add Missing Charge</h3>
-                <button onClick={() => setIsReconciling(false)} style={{ background: 'none', border: 'none', color: 'white', opacity: 0.5, cursor: 'pointer' }}>Close</button>
+                <button onClick={() => setIsReconciling(false)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', opacity: 0.5, cursor: 'pointer' }}>Close</button>
               </div>
               <p style={{ opacity: 0.7, marginBottom: '20px', fontSize: '0.9rem' }}>Record penalties, late fees, or missing transactions to match your real statement.</p>
               <form onSubmit={handleReconcile} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <input 
                   type="text" value={reconcileNote} onChange={e => setReconcileNote(e.target.value)} 
                   placeholder="Charge Name" required
-                  style={{ width: '100%', padding: '15px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: '#000', color: 'white' }} 
+                  style={{ width: '100%', padding: '15px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }} 
                 />
                 <input 
                   type="number" value={reconcileAmount} onChange={e => setReconcileAmount(e.target.value)} 
                   placeholder="Amount" required step="0.01"
-                  style={{ width: '100%', padding: '15px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: '#000', color: 'white' }} 
+                  style={{ width: '100%', padding: '15px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }} 
                 />
                 <button type="submit" style={{ padding: '15px', borderRadius: '12px', background: 'white', color: 'black', fontWeight: 700, border: 'none', cursor: 'pointer' }}>Add to Bill</button>
               </form>

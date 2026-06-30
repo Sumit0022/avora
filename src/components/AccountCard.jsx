@@ -145,7 +145,7 @@ function AccountCard({
           </div>
 
           <div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '600', margin: 0, letterSpacing: '0.5px', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>{account.name}</h3>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '600', margin: 0, letterSpacing: '0.5px', textShadow: '0 2px 4px rgba(0,0,0,0.3)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{account.name}</h3>
             {showTypeLabel && (
               <p style={{ fontSize: '0.75rem', opacity: 0.8, margin: '2px 0 0 0', textTransform: 'uppercase', letterSpacing: '1px' }}>
                 {account.type}

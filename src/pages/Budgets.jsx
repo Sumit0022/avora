@@ -79,12 +79,14 @@ function Budgets() {
     <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', paddingBottom: '100px' }}>
       <div className="container" style={{ paddingTop: '20px' }}>
         <header style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' }}>
-          <Link to="/dashboard" style={{ color: 'var(--text-primary)' }}>
+          <Link to="/dashboard" style={{ color: 'var(--text-primary)', flexShrink: 0 }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
               <IoChevronBack size={24} />
             </div>
           </Link>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0 }}>Budget Insights</h2>
+          <div style={{ flex: 1, minWidth: 0, gap: '10px' }}>
+            <h2 style={{ fontSize: 'clamp(1.3rem, 5vw, 1.8rem)', fontWeight: 800, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Budget Insights</h2>
+          </div>
         </header>
       
       {/* Period Selector */}
