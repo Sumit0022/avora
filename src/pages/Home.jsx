@@ -48,7 +48,7 @@ function Home() {
       <div style={{ position: 'relative', zIndex: 10 }}>
         
         {/* Navbar */}
-        <header style={{ position: 'sticky', top: 0, background: 'rgba(251, 251, 253, 0.8)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(0,0,0,0.05)', padding: '15px 0', zIndex: 100 }}>
+        <header style={{ position: 'fixed', top: 0, left: 0, right: 0, background: 'rgba(251, 251, 253, 0.8)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(0,0,0,0.05)', padding: '15px 0', zIndex: 1000 }}>
           <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <img src="/logo.png" alt="Avora Logo" style={{ width: '32px', height: '32px' }} />
@@ -66,7 +66,7 @@ function Home() {
         </header>
 
         {/* Hero Section */}
-        <section style={{ maxWidth: '1200px', margin: '0 auto', padding: '80px 24px 120px 24px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '60px', minHeight: 'calc(100vh - 70px)' }} className="hero-section">
+        <section style={{ maxWidth: '1200px', margin: '0 auto', padding: '120px 24px 120px 24px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '60px', minHeight: '100vh' }} className="hero-section">
           
           <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, ease: "easeOut" }} style={{ flex: 1 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'rgba(0, 113, 227, 0.1)', border: '1px solid rgba(0, 113, 227, 0.2)', borderRadius: '100px', color: '#0071e3', fontWeight: 600, fontSize: '0.9rem', marginBottom: '24px' }}>
@@ -168,7 +168,7 @@ function Home() {
             <p style={{ fontSize: '1.1rem', color: '#52525b', maxWidth: '600px', margin: '0 auto' }}>Designed meticulously to give you perfect control over personal and shared finances.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
             
             {/* Bento 1 */}
             <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }} style={{ background: '#fff', borderRadius: '32px', padding: '40px', boxShadow: '0 10px 40px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.03)', gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative', overflow: 'hidden' }}>
@@ -236,19 +236,37 @@ function Home() {
           .hero-section {
             flex-direction: column !important;
             text-align: center;
-            padding-top: 40px !important;
+            padding-top: 100px !important;
+            gap: 40px !important;
           }
           .hero-section > div {
             display: flex;
             flex-direction: column;
             align-items: center;
+            width: 100%;
           }
           .hero-mockup {
             transform: scale(0.9);
-            margin-top: -20px;
+            margin-top: 20px;
+            width: 100%;
           }
           .bento-img {
             display: none;
+          }
+        }
+        @media (max-width: 480px) {
+          .hero-mockup {
+            transform: scale(0.75);
+            margin-left: -5%;
+          }
+          .hero-section h1 {
+            font-size: 2.8rem !important;
+          }
+        }
+        @media (max-width: 380px) {
+          .hero-mockup {
+            transform: scale(0.65);
+            margin-left: -10%;
           }
         }
       `}} />
