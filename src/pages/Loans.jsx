@@ -472,6 +472,68 @@ function Loans() {
       </button>
 
       <AddLoanModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+
+      <AnimatePresence>
+        {showActionModal && selectedLoan && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 3000, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', backdropFilter: 'blur(5px)' }}>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} style={{ background: 'var(--bg-primary)', width: '100%', maxWidth: '600px', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '30px' }}>
+              <h3 style={{ margin: '0 0 20px 0', fontSize: '1.2rem', fontWeight: 700, textAlign: 'center' }}>Manage Loan</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <button onClick={() => { setShowActionModal(false); setShowEditModal(true); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '16px', borderRadius: '16px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer' }}>
+                  Edit Loan Terms
+                </button>
+                <button onClick={() => { setShowActionModal(false); setShowDeleteConfirmModal(true); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '16px', borderRadius: '16px', background: 'rgba(255, 69, 58, 0.1)', color: 'var(--danger)', border: 'none', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer' }}>
+                  Delete Loan
+                </button>
+              </div>
+              <button onClick={() => setShowActionModal(false)} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontWeight: 700, fontSize: '1.1rem', marginTop: '20px', cursor: 'pointer' }}>Cancel</button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showDeleteConfirmModal && selectedLoan && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 3000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(5px)' }}>
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} style={{ background: 'var(--bg-primary)', padding: '30px', borderRadius: '24px', width: '90%', maxWidth: '400px', textAlign: 'center' }}>
+              <h3 style={{ margin: '0 0 15px', fontSize: '1.3rem' }}>Delete Loan?</h3>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '25px' }}>Are you sure you want to delete this loan? This action cannot be undone.</p>
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <button onClick={() => setShowDeleteConfirmModal(false)} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={executeDeleteLoan} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: 'var(--danger)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showEditModal && selectedLoan && (
+           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 3000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(5px)' }}>
+             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} style={{ background: 'var(--bg-primary)', padding: '30px', borderRadius: '24px', width: '90%', maxWidth: '400px' }}>
+               <h3 style={{ margin: '0 0 20px', fontSize: '1.3rem' }}>Edit Loan Terms</h3>
+               <form onSubmit={handleEditLoan} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                 <div>
+                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Outstanding Principal</label>
+                   <input type="number" step="0.01" value={editPrincipal} onChange={e => setEditPrincipal(e.target.value)} required style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', outline: 'none' }} />
+                 </div>
+                 <div>
+                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Interest Rate (%)</label>
+                   <input type="number" step="0.01" value={editInterestRate} onChange={e => setEditInterestRate(e.target.value)} required style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', outline: 'none' }} />
+                 </div>
+                 <div>
+                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Duration (Months)</label>
+                   <input type="number" value={editDuration} onChange={e => setEditDuration(e.target.value)} required style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', outline: 'none' }} />
+                 </div>
+                 <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
+                   <button type="button" onClick={() => setShowEditModal(false)} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                   <button type="submit" style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: 'var(--brand-primary)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>Save</button>
+                 </div>
+               </form>
+             </motion.div>
+           </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

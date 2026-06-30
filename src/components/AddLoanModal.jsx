@@ -212,13 +212,10 @@ function AddLoanModal({ isOpen, onClose }) {
         if (category === 'Credit Card' && acc.type === 'Credit Card') {
           updates[`accounts/${currentUser.uid}/${accountId}/balance`] = Number(acc.balance) + amountChange;
           
-          // No transaction log for isOngoing CC loan adjustments, just the limit block.
-          if (!isOngoing) {
-            const txId = push(ref(db, `transactions/${currentUser.uid}`)).key;
-            updates[`transactions/${currentUser.uid}/${txId}`] = {
-              id: txId, type: 'expense', amount: amountChange, accountId, categoryId: 'loan_disbursement', note: `Loan EMI Block: ${finalPersonName}`, date: startDate, time: new Date().toTimeString().slice(0, 5), isLoanTransaction: true, loanId, createdAt: new Date().toISOString()
-            };
-          }
+          const txId = push(ref(db, `transactions/${currentUser.uid}`)).key;
+          updates[`transactions/${currentUser.uid}/${txId}`] = {
+            id: txId, type: 'expense', amount: amountChange, accountId, categoryId: 'loan_disbursement', note: `Loan EMI Block: ${finalPersonName}`, date: isOngoing ? new Date().toISOString().split('T')[0] : startDate, time: new Date().toTimeString().slice(0, 5), isLoanTransaction: true, loanId, createdAt: new Date().toISOString()
+          };
         } else if (!isOngoing) {
           // Standard bank/cash logic for non-ongoing
           if (type === 'given') {

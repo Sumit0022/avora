@@ -103,11 +103,27 @@ function Dashboard() {
         loanList.forEach(loan => {
           if (loan.status === 'active') {
             const principal = Number(loan.outstandingPrincipal || loan.principalAmount || 0);
+            
+            let remainingInterest = 0;
+            if (loan.interestType !== 'none' && loan.emiAmount > 0) {
+               const start = new Date(loan.startDate);
+               const today = new Date();
+               let monthsPassed = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth());
+               if (monthsPassed < 0) monthsPassed = 0;
+               let remainingMonths = loan.durationMonths - monthsPassed;
+               if (remainingMonths < 0) remainingMonths = 0;
+               
+               const totalPayable = loan.emiAmount * remainingMonths;
+               remainingInterest = Math.max(0, totalPayable - principal);
+            }
+
             if (loan.type === 'given') {
-              lTotal += principal;
+              lTotal += (principal + remainingInterest);
             } else if (loan.type === 'taken') {
-              if (loan.category !== 'Credit Card') {
-                lTotal -= principal;
+              if (loan.category === 'Credit Card') {
+                lTotal -= remainingInterest; // Principal is already deducted via CC balance
+              } else {
+                lTotal -= (principal + remainingInterest);
               }
             }
           }
