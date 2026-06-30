@@ -19,6 +19,8 @@ import AccountTransactions from './pages/AccountTransactions';
 import Profile from './pages/Profile';
 import Groups from './pages/Groups';
 import GroupDetails from './pages/GroupDetails';
+import Loans from './pages/Loans';
+import LoanDetails from './pages/LoanDetails';
 import LockScreen from './components/LockScreen';
 import GlobalSearch from './components/GlobalSearch';
 import { IoSearchOutline } from 'react-icons/io5';
@@ -112,6 +114,8 @@ function App() {
             <Route path="/subscriptions" element={<Subscriptions />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/loans" element={<Loans />} />
+            <Route path="/loans/:id" element={<LoanDetails />} />
             <Route path="/credit-bill/:accountId" element={<CreditCardBill />} />
             <Route path="/account-transactions/:accountId" element={<AccountTransactions />} />
           </Route>

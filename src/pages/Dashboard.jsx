@@ -6,7 +6,7 @@ import { db } from '../firebase';
 import { ref, get, child, onValue, query, orderByChild, limitToLast, remove, update } from 'firebase/database';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCategories } from '../context/CategoryContext';
-import { IoChevronForward, IoPieChart, IoCalendar, IoWalletOutline, IoEyeOutline, IoEyeOffOutline, IoPeopleOutline, IoTrashOutline, IoPencilOutline, IoDocumentTextOutline } from 'react-icons/io5';
+import { IoChevronForward, IoPieChart, IoCalendar, IoWalletOutline, IoEyeOutline, IoEyeOffOutline, IoPeopleOutline, IoTrashOutline, IoPencilOutline, IoDocumentTextOutline, IoCashOutline } from 'react-icons/io5';
 import AddTransactionModal from '../components/AddTransactionModal';
 import { processRecurringSubscriptions } from '../utils/subscriptions';
 import { useLongPress } from 'use-long-press';
@@ -227,6 +227,15 @@ function Dashboard() {
           <div className="panel" style={{ minHeight: '160px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', cursor: 'pointer' }}>
             <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'rgba(175, 82, 222, 0.1)', color: '#AF52DE', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '15px' }}><IoDocumentTextOutline size={32} /></div>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '5px' }}>Reports</h3>
+          </div>
+        </Link>
+        <Link to="/loans" style={{ textDecoration: 'none', gridColumn: '1 / -1' }}>
+          <div className="panel" style={{ minHeight: '120px', padding: '20px', display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', gap: '20px', cursor: 'pointer' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'rgba(255, 45, 85, 0.1)', color: '#FF2D55', display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}><IoCashOutline size={32} /></div>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '5px' }}>Loan Management</h3>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>Track EMI, Interest & Friends</p>
+            </div>
           </div>
         </Link>
       </div>
