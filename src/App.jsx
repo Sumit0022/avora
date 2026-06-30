@@ -35,8 +35,8 @@ function App() {
       if (document.visibilityState === 'hidden') {
         hiddenTime = Date.now();
       } else if (document.visibilityState === 'visible') {
-        // 30 seconds grace period
-        if (hiddenTime && (Date.now() - hiddenTime > 30000)) {
+        // 120 seconds grace period
+        if (hiddenTime && (Date.now() - hiddenTime > 120000)) {
           setIsLocked(true);
         }
         hiddenTime = 0;
