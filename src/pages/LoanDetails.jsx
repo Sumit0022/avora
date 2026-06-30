@@ -7,7 +7,7 @@ import { db } from '../firebase';
 import { ref, get, update, push, onValue } from 'firebase/database';
 import { motion } from 'framer-motion';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 function LoanDetails() {
   const { id } = useParams();
@@ -141,80 +141,85 @@ function LoanDetails() {
 
   const generateNOC = () => {
     if (!loan) return;
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFillColor(0, 113, 227); // Brand Primary
-    doc.rect(0, 0, 210, 30, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.text("AVORA", 14, 20);
-    
-    // Title
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(16);
-    doc.text("NO OBJECTION CERTIFICATE (NOC)", 14, 45);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    doc.text("LOAN CLOSURE STATEMENT", 14, 52);
-    
-    // Details
-    doc.setFontSize(10);
-    doc.text(`Date of Issue: ${new Date().toLocaleDateString('en-GB')}`, 14, 65);
-    doc.text(`Lender / Borrower: ${loan.personName}`, 14, 72);
-    doc.text(`Loan Type: ${loan.type === 'given' ? 'Asset (Given)' : 'Liability (Taken)'}`, 14, 79);
-    doc.text(`Principal Amount: Rs. ${loan.principalAmount.toLocaleString('en-IN')}`, 14, 86);
-    doc.text(`Interest Rate: ${loan.interestRate}% (${loan.interestType})`, 14, 93);
-    doc.text(`Duration: ${loan.durationMonths} Months`, 14, 100);
-    
-    // Status statement
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(50, 215, 75); // Success color
-    doc.text("STATUS: FULLY SETTLED / CLOSED", 14, 115);
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "normal");
-    
-    const statement = `This is to certify that the loan of Rs. ${loan.principalAmount.toLocaleString('en-IN')} associated with ${loan.personName} has been fully repaid. There is no outstanding balance remaining against this specific loan account.`;
-    const splitStatement = doc.splitTextToSize(statement, 180);
-    doc.text(splitStatement, 14, 125);
-    
-    // Table
-    const tableData = [];
-    if (loan.repayments) {
-      const reps = Object.keys(loan.repayments).map(k => loan.repayments[k]).sort((a,b) => new Date(a.date) - new Date(b.date));
-      reps.forEach((r, idx) => {
-        tableData.push([
-          idx + 1,
-          new Date(r.date).toLocaleDateString('en-GB'),
-          `Rs. ${Number(r.principalComponent).toLocaleString('en-IN')}`,
-          `Rs. ${Number(r.interestComponent).toLocaleString('en-IN')}`,
-          `Rs. ${Number(r.amount).toLocaleString('en-IN')}`
-        ]);
+    try {
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFillColor(0, 113, 227); // Brand Primary
+      doc.rect(0, 0, 210, 30, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.text("AVORA", 14, 20);
+      
+      // Title
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(16);
+      doc.text("NO OBJECTION CERTIFICATE (NOC)", 14, 45);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.text("LOAN CLOSURE STATEMENT", 14, 52);
+      
+      // Details
+      doc.setFontSize(10);
+      doc.text(`Date of Issue: ${new Date().toLocaleDateString('en-GB')}`, 14, 65);
+      doc.text(`Lender / Borrower: ${loan.personName}`, 14, 72);
+      doc.text(`Loan Type: ${loan.type === 'given' ? 'Asset (Given)' : 'Liability (Taken)'}`, 14, 79);
+      doc.text(`Principal Amount: Rs. ${loan.principalAmount.toLocaleString('en-IN')}`, 14, 86);
+      doc.text(`Interest Rate: ${loan.interestRate}% (${loan.interestType})`, 14, 93);
+      doc.text(`Duration: ${loan.durationMonths} Months`, 14, 100);
+      
+      // Status statement
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(50, 215, 75); // Success color
+      doc.text("STATUS: FULLY SETTLED / CLOSED", 14, 115);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "normal");
+      
+      const statement = `This is to certify that the loan of Rs. ${loan.principalAmount.toLocaleString('en-IN')} associated with ${loan.personName} has been fully repaid. There is no outstanding balance remaining against this specific loan account.`;
+      const splitStatement = doc.splitTextToSize(statement, 180);
+      doc.text(splitStatement, 14, 125);
+      
+      // Table
+      const tableData = [];
+      if (loan.repayments) {
+        const reps = Object.keys(loan.repayments).map(k => loan.repayments[k]).sort((a,b) => new Date(a.date) - new Date(b.date));
+        reps.forEach((r, idx) => {
+          tableData.push([
+            idx + 1,
+            new Date(r.date).toLocaleDateString('en-GB'),
+            `Rs. ${Number(r.principalComponent).toLocaleString('en-IN')}`,
+            `Rs. ${Number(r.interestComponent).toLocaleString('en-IN')}`,
+            `Rs. ${Number(r.amount).toLocaleString('en-IN')}`
+          ]);
+        });
+      }
+
+      autoTable(doc, {
+        startY: 145,
+        head: [['#', 'Date', 'Principal Paid', 'Interest Paid', 'Total EMI']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [0, 113, 227] },
+        styles: { fontSize: 9 }
       });
+
+      // Footer
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        const footerY = doc.internal.pageSize.height - 15;
+        doc.text("This is a system-generated document and does not require a physical signature.", 14, footerY);
+        doc.text(`Page ${i} of ${pageCount}`, 190, footerY, { align: 'right' });
+      }
+
+      doc.save(`NOC_${loan.personName}_Avora.pdf`);
+    } catch (error) {
+      console.error("PDF Generation Error:", error);
+      toast.error("Failed to generate PDF. Check console.");
     }
-
-    doc.autoTable({
-      startY: 145,
-      head: [['#', 'Date', 'Principal Paid', 'Interest Paid', 'Total EMI']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [0, 113, 227] },
-      styles: { fontSize: 9 }
-    });
-
-    // Footer
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(150, 150, 150);
-      const footerY = doc.internal.pageSize.height - 15;
-      doc.text("This is a system-generated document and does not require a physical signature.", 14, footerY);
-      doc.text(`Page ${i} of ${pageCount}`, 190, footerY, { align: 'right' });
-    }
-
-    doc.save(`NOC_${loan.personName}_Avora.pdf`);
   };
 
   if (loading || !loan) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading Loan Details...</div>;
