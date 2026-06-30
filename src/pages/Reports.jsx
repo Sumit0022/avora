@@ -13,6 +13,7 @@ function Reports() {
   const { categories } = useCategories();
   const [profile, setProfile] = useState({});
   const [transactions, setTransactions] = useState([]);
+  const [netWorth, setNetWorth] = useState(0);
   const [loading, setLoading] = useState(true);
   
   const [range, setRange] = useState('thisMonth');
@@ -25,6 +26,16 @@ function Reports() {
       try {
         const profSnap = await get(child(ref(db), `users/${currentUser.uid}`));
         if (profSnap.exists()) setProfile(profSnap.val());
+        
+        const accSnap = await get(child(ref(db), `accounts/${currentUser.uid}`));
+        let currentNetWorth = 0;
+        if (accSnap.exists()) {
+          const accData = accSnap.val();
+          Object.values(accData).forEach(a => {
+            currentNetWorth += a.type === 'Credit Card' ? -Number(a.balance || 0) : Number(a.balance || 0);
+          });
+        }
+        setNetWorth(currentNetWorth);
         
         const txSnap = await get(child(ref(db), `transactions/${currentUser.uid}`));
         if (txSnap.exists()) {
@@ -76,34 +87,75 @@ function Reports() {
     });
     
     let inc = 0, exp = 0;
+    let netIncomeAfterEndDate = 0;
     const catTotals = {};
     
-    filtered.forEach(tx => {
-      if (tx.type === 'income') inc += Number(tx.amount);
+    transactions.forEach(tx => {
+      const txDate = new Date(tx.date);
+      const amt = Number(tx.amount);
+      if (tx.type === 'income') {
+        if (txDate >= startDate && txDate <= endDate) inc += amt;
+        if (txDate > endDate) netIncomeAfterEndDate += amt;
+      }
       if (tx.type === 'expense') {
-        exp += Number(tx.amount);
-        catTotals[tx.categoryName] = (catTotals[tx.categoryName] || 0) + Number(tx.amount);
+        if (txDate >= startDate && txDate <= endDate) {
+          exp += amt;
+          catTotals[tx.categoryName] = (catTotals[tx.categoryName] || 0) + amt;
+        }
+        if (txDate > endDate) netIncomeAfterEndDate -= amt;
       }
     });
+    
+    const closingBalance = netWorth - netIncomeAfterEndDate;
+    const openingBalance = closingBalance - (inc - exp);
     
     const topCats = Object.keys(catTotals).map(k => ({ name: k, total: catTotals[k] }))
       .sort((a, b) => b.total - a.total).slice(0, 5);
     
     setFilteredTxs(filtered);
-    setSummary({ income: inc, expense: exp, net: inc - exp });
+    setSummary({ income: inc, expense: exp, net: inc - exp, openingBalance, closingBalance });
     setTopCategories(topCats);
     
-  }, [range, transactions]);
+  }, [range, transactions, netWorth]);
 
-  const handleDownload = () => {
+  const getLogoBase64 = async () => {
+    try {
+      const response = await fetch('/logo.png');
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const handleDownload = async () => {
     if (filteredTxs.length === 0) return alert('No transactions found for this period.');
     
-    let rangeStr = 'All Time';
-    if (range === 'thisMonth') rangeStr = 'This Month';
-    if (range === 'lastMonth') rangeStr = 'Last Month';
-    if (range === 'thisYear') rangeStr = 'This Year';
+    const now = new Date();
+    let startDate, endDate;
+    if (range === 'thisMonth') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    } else if (range === 'lastMonth') {
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else if (range === 'thisYear') {
+      startDate = new Date(now.getFullYear(), 0, 1);
+      endDate = new Date(now.getFullYear(), 11, 31);
+    }
     
-    generatePDFReport(filteredTxs, summary, rangeStr, profile);
+    let rangeStr = 'All Time';
+    if (startDate && endDate) {
+      const options = { day: '2-digit', month: 'short', year: 'numeric' };
+      rangeStr = `${startDate.toLocaleDateString('en-GB', options)} to ${endDate.toLocaleDateString('en-GB', options)}`;
+    }
+    
+    const logoBase64 = await getLogoBase64();
+    generatePDFReport(filteredTxs, summary, rangeStr, profile, logoBase64);
   };
 
   if (loading) return <div style={{ textAlign: 'center', padding: '50px' }}>Loading Reports...</div>;
