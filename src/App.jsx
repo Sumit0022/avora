@@ -67,7 +67,7 @@ function App() {
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 
-  const hideHeaderRoutes = ['/login', '/signup', '/profile-setup', '/budgets', '/subscriptions', '/savings', '/transactions', '/groups'];
+  const hideHeaderRoutes = ['/', '/login', '/signup', '/profile-setup', '/budgets', '/subscriptions', '/savings', '/transactions', '/groups'];
   const isCreditBillRoute = location.pathname.startsWith('/credit-bill');
   const isAccountTxRoute = location.pathname.startsWith('/account-transactions');
   const isGroupRoute = location.pathname.startsWith('/groups');

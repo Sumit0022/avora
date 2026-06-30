@@ -97,10 +97,10 @@ function Home() {
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <div style={{ width: '40px', height: '40px', background: 'var(--brand-gradient)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>S</div>
+                    <div style={{ width: '40px', height: '40px', background: 'var(--brand-gradient)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>A</div>
                     <div>
                       <div style={{ fontSize: '0.8rem', color: '#86868b' }}>Good Morning,</div>
-                      <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1d1d1f' }}>Sumit</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1d1d1f' }}>Alex</div>
                     </div>
                   </div>
                   <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#f5f5f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
