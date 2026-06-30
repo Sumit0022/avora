@@ -21,6 +21,7 @@ function Profile() {
   const [tempUpi, setTempUpi] = useState('');
   
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [isManagePinModalOpen, setIsManagePinModalOpen] = useState(false);
   const [tempPin, setTempPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [pinStep, setPinStep] = useState(1); // 1: set, 2: confirm
@@ -114,14 +115,22 @@ function Profile() {
     }
   };
 
-  const removePin = async () => {
-    if (window.confirm("Are you sure you want to remove your App Lock PIN?")) {
-      try {
-        await remove(ref(db, `users/${currentUser.uid}/appLockPin`));
-        setProfile(prev => ({ ...prev, appLockPin: null }));
-      } catch (err) {
-        console.error(err);
-      }
+  const handleAppLockClick = () => {
+    if (profile.appLockPin) {
+      setIsManagePinModalOpen(true);
+    } else {
+      openPinModal();
+    }
+  };
+
+  const handleRemovePin = async () => {
+    try {
+      await remove(ref(db, `users/${currentUser.uid}/appLockPin`));
+      setProfile(prev => ({ ...prev, appLockPin: null }));
+      setIsManagePinModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      setMessage('Failed to remove PIN.');
     }
   };
 
@@ -188,7 +197,7 @@ function Profile() {
 
         {/* App Lock PIN Row */}
         <motion.div 
-          onClick={profile.appLockPin ? removePin : openPinModal}
+          onClick={handleAppLockClick}
           whileHover={{ backgroundColor: 'var(--bg-glass)' }}
           whileTap={{ backgroundColor: 'var(--border-subtle)' }}
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px', cursor: 'pointer', borderBottom: '1px solid var(--border-subtle)' }}
@@ -303,6 +312,33 @@ function Profile() {
                   {pinStep === 1 ? 'Continue' : isSaving ? 'Saving...' : 'Enable App Lock'}
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Manage PIN Action Sheet */}
+      <AnimatePresence>
+        {isManagePinModalOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 3000, display: 'flex', justifyContent: 'center', alignItems: 'flex-end', backdropFilter: 'blur(5px)' }}>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} style={{ background: 'var(--bg-primary)', width: '100%', maxWidth: '600px', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '30px', paddingBottom: 'env(safe-area-inset-bottom, 40px)' }}>
+              <h3 style={{ margin: '0 0 20px 0', fontSize: '1.2rem', fontWeight: 700, textAlign: 'center' }}>Manage App Lock</h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <button 
+                  onClick={() => { setIsManagePinModalOpen(false); openPinModal(); }} 
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '16px', borderRadius: '16px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  <IoKeypadOutline size={22} /> Change PIN
+                </button>
+                <button 
+                  onClick={handleRemovePin} 
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '16px', borderRadius: '16px', background: 'rgba(255, 69, 58, 0.1)', color: 'var(--danger)', border: 'none', fontSize: '1.1rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  <IoLockClosedOutline size={22} /> Remove PIN
+                </button>
+              </div>
+              <button onClick={() => setIsManagePinModalOpen(false)} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontWeight: 700, fontSize: '1.1rem', marginTop: '20px', cursor: 'pointer' }}>Cancel</button>
             </motion.div>
           </div>
         )}
