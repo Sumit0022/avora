@@ -108,23 +108,73 @@ function AddLoanModal({ isOpen, onClose }) {
       const loanId = push(ref(db, `loans/${currentUser.uid}`)).key;
       const emi = calculateEMI();
       const finalPersonName = linkedUser ? (linkedUser.name || linkedUser.username) : personName;
+      const selectedAcc = accounts.find(a => a.id === accountId);
+
+      let finalOutstanding = Number(principal);
+      const autoRepayments = {};
+
+      if (isOngoing && category === 'Credit Card' && selectedAcc && selectedAcc.type === 'Credit Card') {
+        const billingDateNum = Number(selectedAcc.billingDate) || 1;
+        const start = new Date(startDate);
+        const today = new Date();
+        
+        let checkDate = new Date(start.getFullYear(), start.getMonth(), billingDateNum);
+        if (start.getDate() > billingDateNum) {
+          checkDate.setMonth(checkDate.getMonth() + 1);
+        }
+
+        while (checkDate <= today) {
+           const repId = push(ref(db, 'dummy')).key;
+           let interestComponent = 0;
+           let principalComponent = emi;
+           
+           if (interestType === 'reducing' && Number(interestRate) > 0) {
+             const r_monthly = (Number(interestRate) / 100) / 12;
+             interestComponent = finalOutstanding * r_monthly;
+             principalComponent = emi - interestComponent;
+           } else if (interestType === 'flat' && Number(interestRate) > 0) {
+             const r_annual = Number(interestRate) / 100;
+             const totalInterest = Number(principal) * r_annual * (Number(duration) / 12);
+             interestComponent = totalInterest / Number(duration);
+             principalComponent = emi - interestComponent;
+           }
+
+           autoRepayments[repId] = {
+             amount: Number(emi.toFixed(2)),
+             principalComponent: Number(principalComponent.toFixed(2)),
+             interestComponent: Number(interestComponent.toFixed(2)),
+             date: checkDate.toISOString(),
+             accountId: accountId,
+             isAutoAdjusted: true
+           };
+
+           finalOutstanding -= principalComponent;
+           checkDate.setMonth(checkDate.getMonth() + 1);
+        }
+        finalOutstanding = Math.max(0, finalOutstanding);
+      }
 
       const loanData = {
         id: loanId,
         type,
         category,
+        accountId, // Store account ID so CC Bill knows which card this loan belongs to
         personName: finalPersonName,
         isOngoing,
         principalAmount: Number(principal),
-        outstandingPrincipal: Number(principal),
+        outstandingPrincipal: Number(finalOutstanding.toFixed(2)),
         interestRate: Number(interestRate) || 0,
         interestType,
         durationMonths: Number(duration),
         startDate,
         emiAmount: Number(emi.toFixed(2)),
-        status: 'active',
+        status: finalOutstanding <= 0.01 ? 'closed' : 'active',
         createdAt: new Date().toISOString()
       };
+
+      if (Object.keys(autoRepayments).length > 0) {
+        loanData.repayments = autoRepayments;
+      }
 
       if (linkedUser) {
         // Send a Linked Loan Request
@@ -154,13 +204,23 @@ function AddLoanModal({ isOpen, onClose }) {
       const updates = {};
       updates[`loans/${currentUser.uid}/${loanId}`] = loanData;
 
-      // If it's a new offline loan, it affects the wallet balance
-      if (!isOngoing) {
-        const accSnapshot = await get(ref(db, `accounts/${currentUser.uid}/${accountId}`));
-        if (accSnapshot.exists()) {
-          const acc = accSnapshot.val();
-          let amountChange = Number(principal);
+      if (selectedAcc) {
+        const acc = selectedAcc;
+        let amountChange = category === 'Credit Card' ? finalOutstanding : Number(principal);
+        
+        // If it's a CC loan, always block the limit (increase balance/debt) even if isOngoing!
+        if (category === 'Credit Card' && acc.type === 'Credit Card') {
+          updates[`accounts/${currentUser.uid}/${accountId}/balance`] = Number(acc.balance) + amountChange;
           
+          // No transaction log for isOngoing CC loan adjustments, just the limit block.
+          if (!isOngoing) {
+            const txId = push(ref(db, `transactions/${currentUser.uid}`)).key;
+            updates[`transactions/${currentUser.uid}/${txId}`] = {
+              id: txId, type: 'expense', amount: amountChange, accountId, categoryId: 'loan_disbursement', note: `Loan EMI Block: ${finalPersonName}`, date: startDate, time: new Date().toTimeString().slice(0, 5), isLoanTransaction: true, loanId, createdAt: new Date().toISOString()
+            };
+          }
+        } else if (!isOngoing) {
+          // Standard bank/cash logic for non-ongoing
           if (type === 'given') {
             updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' 
               ? Number(acc.balance) + amountChange 

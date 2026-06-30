@@ -17,6 +17,8 @@ function CreditCardBill() {
   const [bill, setBill] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [fundingAccounts, setFundingAccounts] = useState([]);
+  const [pendingVirtualEmis, setPendingVirtualEmis] = useState([]);
+  const [activeLoans, setActiveLoans] = useState([]);
   
   const [loading, setLoading] = useState(true);
   
@@ -59,15 +61,91 @@ function CreditCardBill() {
         const txList = Object.keys(txData).map(k => ({ id: k, ...txData[k] }));
 
         const calculatedBill = calculateCreditCardBill(accData, txList);
-        setBill(calculatedBill);
+        
+        // Fetch active CC loans to generate virtual EMIs
+        const loansSnap = await get(ref(db, `loans/${currentUser.uid}`));
+        const loansData = loansSnap.val() || {};
+        const ccLoans = Object.keys(loansData)
+          .map(k => ({ id: k, ...loansData[k] }))
+          .filter(l => l.category === 'Credit Card' && l.accountId === accountId && l.status === 'active');
+        
+        setActiveLoans(ccLoans);
+        let virtualEmis = [];
+        let totalVirtualAmount = 0;
 
         if (calculatedBill) {
-          // Filter transactions for this specific billing period
-          const periodTx = txList.filter(tx => {
+          ccLoans.forEach(loan => {
+            const start = new Date(loan.startDate);
+            const billDateNum = Number(accData.billingDate) || 1;
+            let emiDate = new Date(start.getFullYear(), start.getMonth(), billDateNum);
+            
+            if (start.getDate() > billDateNum) emiDate.setMonth(emiDate.getMonth() + 1);
+            
+            let currentOutstanding = loan.outstandingPrincipal;
+            
+            while (emiDate <= calculatedBill.periodEnd) {
+              const isPaid = loan.repayments && Object.values(loan.repayments).some(rep => {
+                const rDate = new Date(rep.date);
+                return rDate.getMonth() === emiDate.getMonth() && rDate.getFullYear() === emiDate.getFullYear();
+              });
+
+              if (!isPaid) {
+                let interestComponent = 0;
+                let principalComponent = loan.emiAmount;
+                if (loan.interestType === 'reducing' && loan.interestRate > 0) {
+                  const r_monthly = (loan.interestRate / 100) / 12;
+                  interestComponent = currentOutstanding * r_monthly;
+                  principalComponent = loan.emiAmount - interestComponent;
+                } else if (loan.interestType === 'flat' && loan.interestRate > 0) {
+                  const r_annual = loan.interestRate / 100;
+                  const totalInterest = loan.principalAmount * r_annual * (loan.durationMonths / 12);
+                  interestComponent = totalInterest / loan.durationMonths;
+                  principalComponent = loan.emiAmount - interestComponent;
+                }
+                
+                if (principalComponent > currentOutstanding) principalComponent = currentOutstanding;
+
+                const vEmi = {
+                  id: `virtual_${loan.id}_${emiDate.getTime()}`,
+                  type: 'expense',
+                  amount: Number(loan.emiAmount),
+                  principalComponent: Number(principalComponent),
+                  interestComponent: Number(interestComponent),
+                  accountId: accountId,
+                  note: `EMI: ${loan.personName}`,
+                  date: emiDate.toISOString().split('T')[0],
+                  time: '23:59',
+                  isVirtualEmi: true,
+                  loanId: loan.id
+                };
+                
+                virtualEmis.push(vEmi);
+                totalVirtualAmount += vEmi.amount;
+                currentOutstanding -= principalComponent;
+              }
+              emiDate.setMonth(emiDate.getMonth() + 1);
+            }
+          });
+
+          // Add virtual EMIs to the bill
+          calculatedBill.billedAmount += totalVirtualAmount;
+          calculatedBill.remainingBill += totalVirtualAmount;
+          if (calculatedBill.remainingBill > 0) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const dueStr = calculatedBill.dueDate.toISOString().split('T')[0];
+            calculatedBill.isOverdue = todayStr > dueStr;
+          }
+
+          setBill(calculatedBill);
+          setPendingVirtualEmis(virtualEmis);
+
+          // Filter transactions for this specific billing period, including virtual EMIs
+          const periodTx = [...txList, ...virtualEmis].filter(tx => {
             if (tx.accountId !== accountId && tx.toAccountId !== accountId) return false;
             const txDate = new Date(`${tx.date}T${tx.time || '00:00'}:00`);
             return txDate >= calculatedBill.periodStart && txDate <= calculatedBill.periodEnd;
           }).sort((a, b) => new Date(`${b.date}T${b.time || '00:00'}`) - new Date(`${a.date}T${a.time || '00:00'}`));
+          
           setTransactions(periodTx);
         }
 
@@ -142,6 +220,32 @@ function CreditCardBill() {
       
       // Decrease CC Debt (Increase Available Limit)
       updates[`accounts/${currentUser.uid}/${account.id}/balance`] = Number(account.balance) - amount;
+
+      // Process Virtual EMIs (Mark them as paid in Loan Management)
+      pendingVirtualEmis.forEach(vEmi => {
+        const loan = activeLoans.find(l => l.id === vEmi.loanId);
+        if (loan) {
+          const repId = push(ref(db, 'dummy')).key;
+          const newOutstanding = Math.max(0, loan.outstandingPrincipal - vEmi.principalComponent);
+          
+          updates[`loans/${currentUser.uid}/${loan.id}/outstandingPrincipal`] = newOutstanding;
+          if (newOutstanding <= 0.01) {
+            updates[`loans/${currentUser.uid}/${loan.id}/status`] = 'closed';
+          }
+          
+          updates[`loans/${currentUser.uid}/${loan.id}/repayments/${repId}`] = {
+            amount: vEmi.amount,
+            principalComponent: vEmi.principalComponent,
+            interestComponent: vEmi.interestComponent,
+            date: vEmi.date,
+            accountId: account.id,
+            isBillSync: true
+          };
+          
+          // Update local state to chain calculations if there are multiple EMIs for the same loan
+          loan.outstandingPrincipal = newOutstanding;
+        }
+      });
 
       await update(ref(db), updates);
       toast.success('Payment Successful! 🎉');
@@ -224,11 +328,22 @@ function CreditCardBill() {
               transactions.map((tx) => (
                 <div key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '16px' }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '4px' }}>{tx.note || 'Credit Card Expense'}</div>
-                    <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>{new Date(tx.date).toLocaleDateString('en-GB')} {tx.time && `• ${tx.time}`}</div>
+                    <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '4px' }}>
+                      {tx.note || 'Credit Card Expense'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>
+                      {new Date(tx.date).toLocaleDateString('en-GB')} {tx.time && `• ${tx.time}`}
+                    </div>
+                    {tx.isVirtualEmi && (
+                      <div style={{ fontSize: '0.75rem', marginTop: '6px' }}>
+                        <span style={{ color: '#32D74B' }}>₹{tx.principalComponent.toLocaleString('en-IN', {minimumFractionDigits: 2})} Principal</span>
+                        <span style={{ margin: '0 5px', opacity: 0.5 }}>|</span>
+                        <span style={{ color: '#FF453A' }}>₹{tx.interestComponent.toLocaleString('en-IN', {minimumFractionDigits: 2})} Interest</span>
+                      </div>
+                    )}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: '1.1rem', color: tx.type === 'expense' ? 'white' : '#32D74B' }}>
-                    {tx.type === 'expense' ? '' : '+'}{Number(tx.amount).toLocaleString()}
+                    {tx.type === 'expense' ? '' : '+'}{Number(tx.amount).toLocaleString('en-IN')}
                   </div>
                 </div>
               ))

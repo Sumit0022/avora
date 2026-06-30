@@ -39,6 +39,9 @@ export function calculateCreditCardBill(account, transactions) {
     // Use tx.createdAt for absolute sorting, or date+time. Let's use date+time to be consistent with UI
     const txDate = new Date(`${tx.date}T${tx.time || '00:00'}:00`);
 
+    // Ignore full loan disbursement blocks so we can rely on injected monthly EMIs instead
+    if (tx.categoryId === 'loan_disbursement') return;
+
     if (txDate <= periodEnd) {
       // Impact on Debt BEFORE the bill generated
       if (tx.accountId === account.id && tx.type === 'expense') {

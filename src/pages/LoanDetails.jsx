@@ -25,6 +25,10 @@ function LoanDetails() {
   const [pendingSettlements, setPendingSettlements] = useState([]);
   const [processingId, setProcessingId] = useState(null);
 
+  const [showEmiModal, setShowEmiModal] = useState(false);
+  const [showEarlyClosureModal, setShowEarlyClosureModal] = useState(false);
+  const [closurePenalty, setClosurePenalty] = useState('');
+
   useEffect(() => {
     if (!currentUser) return;
 
@@ -73,9 +77,9 @@ function LoanDetails() {
     
     setIsPaying(true);
     try {
-      const amount = Number(repaymentAmount);
+      // EMI Amount comes directly from loan.emiAmount for standard EMIs
+      const amount = Number(loan.emiAmount);
       
-      // Math to split interest vs principal
       let interestComponent = 0;
       let principalComponent = amount;
 
@@ -88,6 +92,11 @@ function LoanDetails() {
         const totalInterest = loan.principalAmount * r_annual * (loan.durationMonths / 12);
         interestComponent = totalInterest / loan.durationMonths;
         principalComponent = amount - interestComponent;
+      }
+
+      // Safeguard against last EMI overpaying principal
+      if (principalComponent > loan.outstandingPrincipal) {
+        principalComponent = loan.outstandingPrincipal;
       }
 
       const newOutstanding = loan.outstandingPrincipal - principalComponent;
@@ -125,7 +134,7 @@ function LoanDetails() {
         await update(ref(db), updates);
         toast.success("EMI payment sent for approval!");
         setIsPaying(false);
-        setRepaymentAmount('');
+        setShowEmiModal(false);
         return;
       }
 
@@ -156,10 +165,66 @@ function LoanDetails() {
 
       await update(ref(db), updates);
       toast.success('Repayment recorded successfully!');
-      setRepaymentAmount('');
+      setShowEmiModal(false);
     } catch (err) {
       console.error(err);
       toast.error('Failed to log repayment.');
+    }
+    setIsPaying(false);
+  };
+
+  const handleEarlyClosure = async (e) => {
+    e.preventDefault();
+    if (!accountId) return toast.error("Select an account.");
+    
+    setIsPaying(true);
+    try {
+      const penalty = Number(closurePenalty) || 0;
+      const principalToPay = loan.outstandingPrincipal;
+      const totalAmount = principalToPay + penalty;
+
+      const txId = push(ref(db, `transactions/${currentUser.uid}`)).key;
+      const repaymentId = push(ref(db, `loans/${currentUser.uid}/${id}/repayments`)).key;
+      const updates = {};
+
+      // Close Loan
+      updates[`loans/${currentUser.uid}/${id}/outstandingPrincipal`] = 0;
+      updates[`loans/${currentUser.uid}/${id}/status`] = 'closed';
+
+      updates[`loans/${currentUser.uid}/${id}/repayments/${repaymentId}`] = {
+        amount: totalAmount,
+        principalComponent: principalToPay,
+        interestComponent: penalty, // Treat penalty as interest
+        date: new Date().toISOString(),
+        accountId,
+        note: 'Early Closure'
+      };
+
+      // Wallet / CC limit logic
+      const accSnapshot = await get(ref(db, `accounts/${currentUser.uid}/${accountId}`));
+      if (accSnapshot.exists()) {
+        const acc = accSnapshot.val();
+        if (loan.type === 'given') {
+          updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' ? Number(acc.balance) - totalAmount : Number(acc.balance) + totalAmount;
+        } else {
+          updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' ? Number(acc.balance) + totalAmount : Number(acc.balance) - totalAmount;
+        }
+
+        updates[`transactions/${currentUser.uid}/${txId}`] = {
+          id: txId, type: loan.type === 'given' ? 'income' : 'expense', amount: totalAmount, accountId, categoryId: 'loan_repayment', note: `Early Closure: ${loan.personName}`, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5), isLoanTransaction: true, loanId: id, createdAt: new Date().toISOString()
+        };
+      }
+
+      // If it's a Linked Loan, we technically should send a request to receiver, but for simplicity we will just execute local closure and let them know. 
+      // Ideally, early closure on linked loans requires mutual agreement, but we will forcefully close for now if it's CC.
+      // Wait, if it's CC, it's not a P2P linked loan. CC loans are offline.
+
+      await update(ref(db), updates);
+      toast.success('Loan closed successfully!');
+      setShowEarlyClosureModal(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to close loan.');
     }
     setIsPaying(false);
   };
@@ -474,6 +539,17 @@ function LoanDetails() {
 
   const repaymentsList = loan.repayments ? Object.keys(loan.repayments).map(k => ({ id: k, ...loan.repayments[k] })).sort((a,b) => new Date(b.date) - new Date(a.date)) : [];
 
+  let nextMonthName = "";
+  if (repaymentsList.length > 0) {
+    const lastDate = new Date(repaymentsList[0].date);
+    lastDate.setMonth(lastDate.getMonth() + 1);
+    nextMonthName = lastDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+  } else {
+    const startD = new Date(loan.startDate);
+    startD.setMonth(startD.getMonth() + 1);
+    nextMonthName = startD.toLocaleString('default', { month: 'long', year: 'numeric' });
+  }
+
   return (
     <div className="container" style={{ paddingBottom: '100px', paddingTop: '20px' }}>
       <header style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' }}>
@@ -569,29 +645,28 @@ function LoanDetails() {
 
       {loan.status === 'active' && (
         <div style={{ background: 'var(--bg-secondary)', padding: '20px', borderRadius: '24px', marginBottom: '30px' }}>
-          <h3 style={{ margin: '0 0 15px', fontSize: '1.1rem', fontWeight: 700 }}>Log Repayment</h3>
-          <form onSubmit={handleRepayment}>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: 'var(--bg-primary)', borderRadius: '16px', border: '1px solid var(--border-subtle)', padding: '0 15px' }}>
-                <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>₹</span>
-                <input type="number" value={repaymentAmount} onChange={e => setRepaymentAmount(e.target.value)} required step="0.01" style={{ width: '100%', padding: '16px 10px', border: 'none', background: 'transparent', color: 'var(--text-primary)', fontSize: '1.1rem', outline: 'none', fontWeight: 700 }} />
-              </div>
-              <button type="submit" disabled={isPaying || !repaymentAmount} style={{ background: loan.type === 'given' ? 'var(--success)' : 'var(--danger)', color: 'white', border: 'none', padding: '0 25px', borderRadius: '16px', fontWeight: 700, fontSize: '1rem', cursor: 'pointer', opacity: isPaying ? 0.5 : 1 }}>
-                {isPaying ? '...' : 'Pay'}
+          
+          {loan.category === 'Credit Card' ? (
+            <div style={{ textAlign: 'center' }}>
+              <h3 style={{ margin: '0 0 10px', fontSize: '1.1rem', fontWeight: 700, color: 'var(--brand-primary)' }}>Credit Card EMI</h3>
+              <p style={{ margin: '0 0 20px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                Your EMIs are automatically added to your monthly Credit Card Bill. Please clear your dues directly from the Credit Card Bill section.
+              </p>
+              <button onClick={() => setShowEarlyClosureModal(true)} style={{ background: 'var(--bg-primary)', color: 'var(--brand-primary)', border: '1px solid var(--brand-primary)', padding: '12px 20px', borderRadius: '12px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', width: '100%' }}>
+                Request Early Closure
               </button>
             </div>
-            
-            <select value={accountId} onChange={e => setAccountId(e.target.value)} required style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-subtle)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }}>
-              <option value="" disabled>Select wallet account...</option>
-              {accounts.map(acc => (
-                <option key={acc.id} value={acc.id}>{acc.name}</option>
-              ))}
-            </select>
-            
-            <p style={{ margin: '15px 0 0', fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>
-              We will automatically calculate the Principal vs Interest split.
-            </p>
-          </form>
+          ) : (
+            <div>
+              <h3 style={{ margin: '0 0 15px', fontSize: '1.1rem', fontWeight: 700 }}>Log Repayment</h3>
+              <button 
+                onClick={() => setShowEmiModal(true)}
+                style={{ width: '100%', padding: '16px', borderRadius: '16px', background: loan.type === 'given' ? 'var(--success)' : 'var(--danger)', color: 'white', border: 'none', fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 8px 20px rgba(0,0,0,0.1)' }}
+              >
+                Pay {nextMonthName} EMI (₹{loan.emiAmount.toLocaleString('en-IN')})
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -614,6 +689,88 @@ function LoanDetails() {
           ))}
         </div>
       )}
+
+      {/* EMI Confirmation Modal */}
+      {showEmiModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 3000, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ background: 'var(--bg-primary)', padding: '30px', borderRadius: '24px', width: '90%', maxWidth: '400px' }}>
+            <h3 style={{ margin: '0 0 20px', fontSize: '1.3rem', fontWeight: 800 }}>Confirm EMI Payment</h3>
+            <div style={{ background: 'var(--bg-secondary)', padding: '20px', borderRadius: '16px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Total EMI:</span>
+                <span style={{ fontWeight: 800, fontSize: '1.1rem' }}>₹{loan.emiAmount.toLocaleString('en-IN')}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Towards Principal:</span>
+                <span style={{ color: 'var(--success)', fontWeight: 600 }}>Calculated automatically</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Towards Interest:</span>
+                <span style={{ color: 'var(--danger)', fontWeight: 600 }}>Calculated automatically</span>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Pay using Account</label>
+              <select value={accountId} onChange={e => setAccountId(e.target.value)} required style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', outline: 'none' }}>
+                <option value="" disabled>Select wallet account...</option>
+                {accounts.map(acc => (
+                  <option key={acc.id} value={acc.id}>{acc.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setShowEmiModal(false)} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleRepayment} disabled={isPaying} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'var(--brand-primary)', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
+                {isPaying ? 'Processing...' : 'Confirm Pay'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Early Closure Modal */}
+      {showEarlyClosureModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 3000, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ background: 'var(--bg-primary)', padding: '30px', borderRadius: '24px', width: '90%', maxWidth: '400px' }}>
+            <h3 style={{ margin: '0 0 20px', fontSize: '1.3rem', fontWeight: 800 }}>Early Closure</h3>
+            
+            <div style={{ background: 'var(--bg-secondary)', padding: '20px', borderRadius: '16px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Remaining Principal:</span>
+                <span style={{ fontWeight: 800, fontSize: '1.1rem' }}>₹{loan.outstandingPrincipal.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Pre-closure Penalty / Extra Fees (if any)</label>
+              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-subtle)', padding: '0 15px' }}>
+                <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>₹</span>
+                <input type="number" value={closurePenalty} onChange={e => setClosurePenalty(e.target.value)} placeholder="0.00" style={{ width: '100%', padding: '14px 10px', border: 'none', background: 'transparent', color: 'var(--text-primary)', outline: 'none', fontWeight: 600 }} />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Pay using Account</label>
+              <select value={accountId} onChange={e => setAccountId(e.target.value)} required style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', outline: 'none' }}>
+                <option value="" disabled>Select wallet account...</option>
+                {accounts.map(acc => (
+                  <option key={acc.id} value={acc.id}>{acc.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setShowEarlyClosureModal(false)} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleEarlyClosure} disabled={isPaying} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'var(--brand-primary)', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
+                {isPaying ? 'Processing...' : `Pay ₹${(loan.outstandingPrincipal + (Number(closurePenalty) || 0)).toLocaleString('en-IN')}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
