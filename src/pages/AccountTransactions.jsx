@@ -76,7 +76,6 @@ function AccountTransactions() {
           <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0 }}>Wallet</h2>
         </header>
 
-      <div style={{ paddingTop: '10px' }}>
         {account && (
           <div style={{ marginBottom: '30px', textAlign: 'center' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 5px 0' }}>{account.name}</h2>
