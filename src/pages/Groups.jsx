@@ -170,12 +170,6 @@ function Groups() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <h2 style={{ fontSize: '2rem', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>Groups</h2>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button 
-            onClick={() => window.dispatchEvent(new Event('openGlobalSearch'))}
-            style={{ padding: '10px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-          >
-            <IoSearchOutline size={20} />
-          </button>
           <button onClick={() => setIsJoinModalOpen(true)} style={{ padding: '10px 14px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
             <IoEnterOutline size={20} /> <span className="hide-on-mobile">Join</span>
           </button>
