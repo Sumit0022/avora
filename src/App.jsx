@@ -18,11 +18,32 @@ import AccountTransactions from './pages/AccountTransactions';
 import Profile from './pages/Profile';
 import Groups from './pages/Groups';
 import GroupDetails from './pages/GroupDetails';
+import LockScreen from './components/LockScreen';
+import GlobalSearch from './components/GlobalSearch';
+import { IoSearchOutline } from 'react-icons/io5';
 
 
 function App() {
   const [theme, setTheme] = useState('light');
+  const [isLocked, setIsLocked] = useState(false);
   const location = useLocation();
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // We set locked when they leave the app (if they have a PIN, LockScreen handles checking)
+        // A slight delay so it doesn't lock if they just switch tabs for 1 second?
+        // Actually, instant lock is safest for privacy.
+        setIsLocked(true);
+      }
+    };
+    
+    // Also lock on initial load to verify PIN
+    setIsLocked(true);
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
 
   useEffect(() => {
     // Check local storage for theme preference, default to light
@@ -46,15 +67,24 @@ function App() {
 
   return (
     <>
+      <LockScreen isLocked={isLocked} onUnlock={() => setIsLocked(false)} />
+      <GlobalSearch />
+      
       <Toaster position="top-center" toastOptions={{ style: { background: 'var(--bg-glass)', color: 'var(--text-primary)', borderRadius: '16px', backdropFilter: 'blur(20px)', border: '1px solid var(--border-subtle)' } }} />
       {!hideHeader && (
-        <header style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
           <Link to="/" style={{ textDecoration: 'none' }}>
             <h1 style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0, letterSpacing: '-1px', display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
               <img src="/logo.png" alt="Avora Logo" className="brand-logo" />
               AVORA
             </h1>
           </Link>
+          <button 
+            onClick={() => window.dispatchEvent(new Event('openGlobalSearch'))}
+            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', width: '42px', height: '42px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', color: 'var(--text-primary)' }}
+          >
+            <IoSearchOutline size={22} />
+          </button>
         </header>
       )}
 

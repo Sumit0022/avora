@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, onValue, get, update } from 'firebase/database';
 import { Link, useNavigate } from 'react-router-dom';
-import { IoChevronBack, IoFilterOutline, IoCloseOutline, IoPeopleOutline, IoTrashOutline, IoPencilOutline } from 'react-icons/io5';
+import { IoChevronBack, IoFilterOutline, IoCloseOutline, IoPeopleOutline, IoTrashOutline, IoPencilOutline, IoSearchOutline } from 'react-icons/io5';
 import { useCategories } from '../context/CategoryContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import AddTransactionModal from '../components/AddTransactionModal';
@@ -141,9 +141,17 @@ function Transactions() {
         <button onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '1rem', fontWeight: 600, color: 'var(--brand-primary)', cursor: 'pointer' }}>
           <IoChevronBack size={20} /> Home
         </button>
-        <button onClick={() => setShowFilterModal(true)} style={{ background: 'var(--bg-secondary)', border: 'none', padding: '8px 12px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
-          <IoFilterOutline size={18} /> Filters
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            onClick={() => window.dispatchEvent(new Event('openGlobalSearch'))}
+            style={{ background: 'var(--bg-secondary)', border: 'none', width: '36px', height: '36px', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', color: 'var(--text-primary)' }}
+          >
+            <IoSearchOutline size={18} />
+          </button>
+          <button onClick={() => setShowFilterModal(true)} style={{ background: 'var(--bg-secondary)', border: 'none', padding: '8px 12px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
+            <IoFilterOutline size={18} /> Filters
+          </button>
+        </div>
       </div>
 
       <div className="container" style={{ paddingTop: '10px' }}>

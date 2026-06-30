@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, onValue, push, set, query, orderByChild, equalTo, get, update } from 'firebase/database';
-import { IoAdd, IoEnterOutline, IoPeopleOutline, IoChevronForward } from 'react-icons/io5';
+import { IoAdd, IoEnterOutline, IoPeopleOutline, IoChevronForward, IoSearchOutline } from 'react-icons/io5';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
@@ -169,12 +169,18 @@ function Groups() {
     <div className="container" style={{ paddingTop: '20px', paddingBottom: '100px', maxWidth: '600px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <h2 style={{ fontSize: '2rem', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>Groups</h2>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            onClick={() => window.dispatchEvent(new Event('openGlobalSearch'))}
+            style={{ padding: '10px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+          >
+            <IoSearchOutline size={20} />
+          </button>
           <button onClick={() => setIsJoinModalOpen(true)} style={{ padding: '10px 14px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-            <IoEnterOutline size={20} /> Join
+            <IoEnterOutline size={20} /> <span className="hide-on-mobile">Join</span>
           </button>
           <button onClick={() => setIsCreateModalOpen(true)} className="btn-primary" style={{ padding: '10px 14px', borderRadius: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-            <IoAdd size={20} /> Create
+            <IoAdd size={20} /> <span className="hide-on-mobile">Create</span>
           </button>
         </div>
       </div>
