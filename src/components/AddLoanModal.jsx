@@ -217,11 +217,11 @@ function AddLoanModal({ isOpen, onClose }) {
 
       if (selectedAcc) {
         const acc = selectedAcc;
-        let amountChange = category === 'Credit Card' ? finalOutstanding : Number(principal);
+        let amountChange = category === 'Credit Card' ? Number(finalOutstanding.toFixed(2)) : Number(principal);
         
         // If it's a CC loan, always block the limit (increase balance/debt) even if isOngoing!
         if (category === 'Credit Card' && acc.type === 'Credit Card') {
-          updates[`accounts/${currentUser.uid}/${accountId}/balance`] = Number(acc.balance) + amountChange;
+          updates[`accounts/${currentUser.uid}/${accountId}/balance`] = Number(acc.balance || 0) + amountChange;
           
           const txId = push(ref(db, `transactions/${currentUser.uid}`)).key;
           updates[`transactions/${currentUser.uid}/${txId}`] = {
@@ -257,7 +257,11 @@ function AddLoanModal({ isOpen, onClose }) {
       }
 
       await update(ref(db), updates);
-      toast.success('Loan added successfully!');
+      if (category === 'Credit Card' && selectedAcc?.type === 'Credit Card') {
+        toast.success(`Loan added! CC Limit blocked by ₹${(category === 'Credit Card' ? Number(finalOutstanding.toFixed(2)) : Number(principal)).toLocaleString()}`);
+      } else {
+        toast.success('Loan added successfully!');
+      }
       onClose();
     } catch (err) {
       console.error(err);
