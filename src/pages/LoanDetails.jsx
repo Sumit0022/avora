@@ -144,42 +144,103 @@ function LoanDetails() {
     try {
       const doc = new jsPDF();
       
-      // Header
+      // Top Accent Line
       doc.setFillColor(0, 113, 227); // Brand Primary
-      doc.rect(0, 0, 210, 30, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(22);
-      doc.setFont("helvetica", "bold");
-      doc.text("AVORA", 14, 20);
+      doc.rect(0, 0, 210, 6, 'F');
       
-      // Title
-      doc.setTextColor(0, 0, 0);
+      // Branding Header
+      doc.setTextColor(0, 113, 227);
+      doc.setFontSize(26);
+      doc.setFont("helvetica", "bold");
+      doc.text("AVORA", 14, 22);
+      
+      doc.setTextColor(120, 120, 120);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("Personal Finance & Settlements", 14, 28);
+      doc.text(`Issue Date: ${new Date().toLocaleDateString('en-GB')}`, 196, 28, { align: 'right' });
+      
+      // Divider
+      doc.setDrawColor(230, 230, 230);
+      doc.line(14, 34, 196, 34);
+
+      // Certificate Title
+      doc.setTextColor(20, 20, 20);
       doc.setFontSize(16);
-      doc.text("NO OBJECTION CERTIFICATE (NOC)", 14, 45);
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "normal");
-      doc.text("LOAN CLOSURE STATEMENT", 14, 52);
-      
-      // Details
-      doc.setFontSize(10);
-      doc.text(`Date of Issue: ${new Date().toLocaleDateString('en-GB')}`, 14, 65);
-      doc.text(`Lender / Borrower: ${loan.personName}`, 14, 72);
-      doc.text(`Loan Type: ${loan.type === 'given' ? 'Asset (Given)' : 'Liability (Taken)'}`, 14, 79);
-      doc.text(`Principal Amount: Rs. ${loan.principalAmount.toLocaleString('en-IN')}`, 14, 86);
-      doc.text(`Interest Rate: ${loan.interestRate}% (${loan.interestType})`, 14, 93);
-      doc.text(`Duration: ${loan.durationMonths} Months`, 14, 100);
-      
-      // Status statement
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(50, 215, 75); // Success color
-      doc.text("STATUS: FULLY SETTLED / CLOSED", 14, 115);
-      doc.setTextColor(0, 0, 0);
+      doc.text("NO OBJECTION CERTIFICATE", 105, 48, { align: 'center' });
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
       doc.setFont("helvetica", "normal");
+      doc.text("OFFICIAL LOAN CLOSURE STATEMENT", 105, 54, { align: 'center' });
+
+      // Details Box
+      doc.setFillColor(248, 249, 250);
+      doc.setDrawColor(220, 220, 220);
+      doc.roundedRect(14, 62, 182, 34, 3, 3, 'FD');
+
+      // Col 1
+      doc.setFontSize(9);
+      doc.setTextColor(130, 130, 130);
+      doc.text("Counterparty:", 18, 72);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "bold");
+      doc.text(loan.personName, 45, 72);
+
+      doc.setTextColor(130, 130, 130);
+      doc.setFont("helvetica", "normal");
+      doc.text("Loan Type:", 18, 80);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "bold");
+      doc.text(loan.type === 'given' ? 'Asset (Lent)' : 'Liability (Borrowed)', 45, 80);
+
+      doc.setTextColor(130, 130, 130);
+      doc.setFont("helvetica", "normal");
+      doc.text("Duration:", 18, 88);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${loan.durationMonths} Months`, 45, 88);
+
+      // Col 2
+      doc.setTextColor(130, 130, 130);
+      doc.setFont("helvetica", "normal");
+      doc.text("Principal:", 110, 72);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Rs. ${loan.principalAmount.toLocaleString('en-IN')}`, 130, 72);
+
+      doc.setTextColor(130, 130, 130);
+      doc.setFont("helvetica", "normal");
+      doc.text("Interest Rate:", 110, 80);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${loan.interestRate}% (${loan.interestType})`, 130, 80);
+
+      // Status Box (Green)
+      doc.setFillColor(237, 251, 242);
+      doc.setDrawColor(186, 236, 201);
+      doc.roundedRect(14, 102, 182, 12, 2, 2, 'FD');
       
-      const statement = `This is to certify that the loan of Rs. ${loan.principalAmount.toLocaleString('en-IN')} associated with ${loan.personName} has been fully repaid. There is no outstanding balance remaining against this specific loan account.`;
-      const splitStatement = doc.splitTextToSize(statement, 180);
-      doc.text(splitStatement, 14, 125);
+      doc.setTextColor(30, 130, 76);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("STATUS: FULLY SETTLED & CLOSED", 105, 110, { align: 'center' });
+
+      // Statement Paragraph
+      doc.setTextColor(60, 60, 60);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      const statement = `This document certifies that the loan of Rs. ${loan.principalAmount.toLocaleString('en-IN')} associated with ${loan.personName} has been fully repaid in its entirety. There are no outstanding dues, principal, or interest remaining against this specific loan record on the Avora platform.`;
+      const splitStatement = doc.splitTextToSize(statement, 182);
+      doc.text(splitStatement, 14, 124);
       
+      // Table Header
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(20, 20, 20);
+      doc.text("Transaction History", 14, 140);
+
       // Table
       const tableData = [];
       if (loan.repayments) {
@@ -196,13 +257,26 @@ function LoanDetails() {
       }
 
       autoTable(doc, {
-        startY: 145,
+        startY: 144,
         head: [['#', 'Date', 'Principal Paid', 'Interest Paid', 'Total EMI']],
         body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [0, 113, 227] },
-        styles: { fontSize: 9 }
+        theme: 'striped',
+        headStyles: { fillColor: [240, 240, 240], textColor: [20, 20, 20], fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 4, textColor: [60, 60, 60] },
+        alternateRowStyles: { fillColor: [252, 252, 252] },
+        margin: { left: 14, right: 14 }
       });
+
+      // Signature & Footer
+      const finalY = doc.lastAutoTable.finalY + 20;
+      if (finalY < doc.internal.pageSize.height - 40) {
+        doc.setDrawColor(200, 200, 200);
+        doc.line(150, finalY, 196, finalY);
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.setFont("helvetica", "normal");
+        doc.text("System Generated", 173, finalY + 5, { align: 'center' });
+      }
 
       // Footer
       const pageCount = doc.internal.getNumberOfPages();
