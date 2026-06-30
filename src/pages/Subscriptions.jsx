@@ -132,13 +132,13 @@ function Subscriptions() {
     <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh', paddingBottom: '100px' }}>
       <div className="container" style={{ paddingTop: '20px' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <Link to="/dashboard" style={{ color: 'var(--text-primary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+            <Link to="/dashboard" style={{ color: 'var(--text-primary)', flexShrink: 0 }}>
               <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 <IoChevronBack size={24} />
               </div>
             </Link>
-            <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0 }}>Subscriptions</h2>
+            <h2 style={{ fontSize: 'clamp(1.3rem, 5vw, 1.8rem)', fontWeight: 800, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Subscriptions</h2>
           </div>
           <button onClick={() => setIsAdding(true)} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '16px', display: 'flex', gap: '5px', alignItems: 'center' }}>
             <IoAddOutline size={20}/> New

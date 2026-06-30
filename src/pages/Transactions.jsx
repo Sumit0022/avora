@@ -139,13 +139,13 @@ function Transactions() {
       
       <div className="container" style={{ paddingTop: '20px' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <Link to="/dashboard" style={{ color: 'var(--text-primary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+            <Link to="/dashboard" style={{ color: 'var(--text-primary)', flexShrink: 0 }}>
               <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 <IoChevronBack size={24} />
               </div>
             </Link>
-            <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0 }}>All Transactions</h2>
+            <h2 style={{ fontSize: 'clamp(1.3rem, 5vw, 1.8rem)', fontWeight: 800, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>All Transactions</h2>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button 
