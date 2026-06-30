@@ -600,7 +600,6 @@ function Profile() {
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <button 
-                <button 
                   onClick={() => executeDeleteAccount()} 
                   disabled={isDeleting}
                   style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--danger)', color: 'white', border: 'none', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', opacity: isDeleting ? 0.7 : 1 }}
