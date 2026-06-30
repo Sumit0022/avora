@@ -22,6 +22,8 @@ function LoanDetails() {
   
   const [repaymentAmount, setRepaymentAmount] = useState('');
   const [isPaying, setIsPaying] = useState(false);
+  const [pendingSettlements, setPendingSettlements] = useState([]);
+  const [processingId, setProcessingId] = useState(null);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -39,16 +41,30 @@ function LoanDetails() {
     });
 
     const accountsRef = ref(db, `accounts/${currentUser.uid}`);
-    onValue(accountsRef, (snapshot) => {
+    const unsubAccounts = onValue(accountsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         const accList = Object.keys(data).map(k => ({ id: k, ...data[k] }));
         setAccounts(accList);
-        if (accList.length > 0) setAccountId(accList[0].id);
+        if (accList.length > 0 && !accountId) setAccountId(accList[0].id);
       }
-    }, { onlyOnce: true });
+    });
 
-    return () => unsub();
+    const settlementsRef = ref(db, `loanSettlements/${currentUser.uid}`);
+    const unsubSettlements = onValue(settlementsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setPendingSettlements(
+          Object.keys(data)
+            .map(k => ({ ...data[k] }))
+            .filter(s => s.loanId === id && s.status === 'pending')
+        );
+      } else {
+        setPendingSettlements([]);
+      }
+    });
+
+    return () => { unsub(); unsubAccounts(); unsubSettlements(); };
   }, [currentUser, id, navigate]);
 
   const handleRepayment = async (e) => {
@@ -74,69 +90,166 @@ function LoanDetails() {
         principalComponent = amount - interestComponent;
       }
 
-      // If they pay less than interest, outstanding principal actually goes UP! (Negative principal component)
       const newOutstanding = loan.outstandingPrincipal - principalComponent;
-
-      const repaymentId = push(ref(db, `loans/${currentUser.uid}/${id}/repayments`)).key;
       const txId = push(ref(db, `transactions/${currentUser.uid}`)).key;
-
       const updates = {};
-      
-      // Update Loan
+
+      if (loan.linkedUserId) {
+        const settlementId = push(ref(db, `loanSettlements/${loan.linkedUserId}`)).key;
+        updates[`loanSettlements/${loan.linkedUserId}/${settlementId}`] = {
+          id: settlementId,
+          senderId: currentUser.uid,
+          loanId: loan.linkedLoanId,
+          senderLoanId: id,
+          amount,
+          principalComponent,
+          interestComponent,
+          accountId,
+          status: 'pending',
+          createdAt: new Date().toISOString()
+        };
+
+        const accSnapshot = await get(ref(db, `accounts/${currentUser.uid}/${accountId}`));
+        if (accSnapshot.exists()) {
+          const acc = accSnapshot.val();
+          if (loan.type === 'given') {
+            updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' ? Number(acc.balance) - amount : Number(acc.balance) + amount;
+          } else {
+            updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' ? Number(acc.balance) + amount : Number(acc.balance) - amount;
+          }
+          updates[`transactions/${currentUser.uid}/${txId}`] = {
+            id: txId, type: loan.type === 'given' ? 'income' : 'expense', amount, accountId, categoryId: 'loan_repayment', note: `Sent EMI to ${loan.personName} (Pending)`, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5), isLoanTransaction: true, loanId: id, createdAt: new Date().toISOString()
+          };
+        }
+
+        await update(ref(db), updates);
+        toast.success("EMI payment sent for approval!");
+        setIsPaying(false);
+        setRepaymentAmount('');
+        return;
+      }
+
+      // Offline Loan direct execution
+      const repaymentId = push(ref(db, `loans/${currentUser.uid}/${id}/repayments`)).key;
       updates[`loans/${currentUser.uid}/${id}/outstandingPrincipal`] = Math.max(0, newOutstanding);
       if (newOutstanding <= 0.01) {
         updates[`loans/${currentUser.uid}/${id}/status`] = 'closed';
       }
 
-      // Add Repayment Record
       updates[`loans/${currentUser.uid}/${id}/repayments/${repaymentId}`] = {
-        amount,
-        principalComponent,
-        interestComponent,
-        date: new Date().toISOString(),
-        accountId
+        amount, principalComponent, interestComponent, date: new Date().toISOString(), accountId
       };
 
-      // Update Wallet & add transaction
       const accSnapshot = await get(ref(db, `accounts/${currentUser.uid}/${accountId}`));
       if (accSnapshot.exists()) {
         const acc = accSnapshot.val();
-        
-        // If loan was GIVEN (Asset), repayment means money comes IN to our account (Income)
-        // If loan was TAKEN (Liab), repayment means money goes OUT of our account (Expense)
         if (loan.type === 'given') {
-          updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' 
-            ? Number(acc.balance) - amount // CC balance goes down (debt reduced)
-            : Number(acc.balance) + amount;
+          updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' ? Number(acc.balance) - amount : Number(acc.balance) + amount;
         } else {
-          updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' 
-            ? Number(acc.balance) + amount // CC debt increases
-            : Number(acc.balance) - amount;
+          updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' ? Number(acc.balance) + amount : Number(acc.balance) - amount;
         }
 
         updates[`transactions/${currentUser.uid}/${txId}`] = {
-          id: txId,
-          type: loan.type === 'given' ? 'income' : 'expense',
-          amount: amount,
-          accountId,
-          categoryId: 'loan_repayment',
-          note: `EMI Repayment: ${loan.personName}`,
-          date: new Date().toISOString().split('T')[0],
-          time: new Date().toTimeString().slice(0, 5),
-          isLoanTransaction: true,
-          loanId: id,
-          createdAt: new Date().toISOString()
+          id: txId, type: loan.type === 'given' ? 'income' : 'expense', amount, accountId, categoryId: 'loan_repayment', note: `EMI Repayment: ${loan.personName}`, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5), isLoanTransaction: true, loanId: id, createdAt: new Date().toISOString()
         };
       }
 
       await update(ref(db), updates);
       toast.success('Repayment recorded successfully!');
-      
+      setRepaymentAmount('');
     } catch (err) {
       console.error(err);
       toast.error('Failed to log repayment.');
     }
     setIsPaying(false);
+  };
+
+  const handleApproveSettlement = async (settlement) => {
+    if (!accountId) return toast.error("Select an account to receive this EMI.");
+    setProcessingId(settlement.id);
+    try {
+      const updates = {};
+      const { senderId, senderLoanId, amount, principalComponent, interestComponent } = settlement;
+      const newOutstanding = Math.max(0, loan.outstandingPrincipal - principalComponent);
+
+      // 1. Update Receiver's (My) Loan
+      updates[`loans/${currentUser.uid}/${id}/outstandingPrincipal`] = newOutstanding;
+      if (newOutstanding <= 0.01) updates[`loans/${currentUser.uid}/${id}/status`] = 'closed';
+      
+      const myRepaymentId = push(ref(db, `loans/${currentUser.uid}/${id}/repayments`)).key;
+      updates[`loans/${currentUser.uid}/${id}/repayments/${myRepaymentId}`] = { amount, principalComponent, interestComponent, date: new Date().toISOString(), accountId };
+
+      // 2. Update Sender's (Their) Loan
+      const senderLoanSnap = await get(ref(db, `loans/${senderId}/${senderLoanId}`));
+      if (senderLoanSnap.exists()) {
+        const senderLoan = senderLoanSnap.val();
+        const theirNewOutstanding = Math.max(0, senderLoan.outstandingPrincipal - principalComponent);
+        updates[`loans/${senderId}/${senderLoanId}/outstandingPrincipal`] = theirNewOutstanding;
+        if (theirNewOutstanding <= 0.01) updates[`loans/${senderId}/${senderLoanId}/status`] = 'closed';
+        
+        const theirRepaymentId = push(ref(db, `loans/${senderId}/${senderLoanId}/repayments`)).key;
+        updates[`loans/${senderId}/${senderLoanId}/repayments/${theirRepaymentId}`] = { amount, principalComponent, interestComponent, date: new Date().toISOString(), accountId: settlement.accountId };
+      }
+
+      // 3. Update My Wallet
+      const accSnap = await get(ref(db, `accounts/${currentUser.uid}/${accountId}`));
+      if (accSnap.exists()) {
+        const acc = accSnap.val();
+        if (loan.type === 'given') {
+          updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' ? Number(acc.balance) - amount : Number(acc.balance) + amount;
+        } else {
+          updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' ? Number(acc.balance) + amount : Number(acc.balance) - amount;
+        }
+        const txId = push(ref(db, `transactions/${currentUser.uid}`)).key;
+        updates[`transactions/${currentUser.uid}/${txId}`] = {
+          id: txId, type: loan.type === 'given' ? 'income' : 'expense', amount, accountId, categoryId: 'loan_repayment', note: `Received EMI from ${loan.personName}`, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5), isLoanTransaction: true, loanId: id, createdAt: new Date().toISOString()
+        };
+      }
+
+      // Remove Settlement
+      updates[`loanSettlements/${currentUser.uid}/${settlement.id}`] = null;
+      await update(ref(db), updates);
+      toast.success("EMI Approved!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to approve EMI");
+    }
+    setProcessingId(null);
+  };
+
+  const handleRejectSettlement = async (settlement) => {
+    setProcessingId(settlement.id);
+    try {
+      const updates = {};
+      const { senderId, amount, accountId: senderAccountId } = settlement;
+      
+      // Refund Sender
+      const senderAccSnap = await get(ref(db, `accounts/${senderId}/${senderAccountId}`));
+      if (senderAccSnap.exists()) {
+        const acc = senderAccSnap.val();
+        // Since they were paying us, they were deducting. To refund, we add back.
+        // Wait, if loan was 'taken' by us, they were 'giving' us money. 
+        // If loan was 'given' by us, they (borrower) were paying us back.
+        // In handleRepayment, if loan is 'given' by sender, they receive money? No, if sender is paying EMI, they are the borrower.
+        // Regardless, we reverse what they did in handleRepayment.
+        // Sender paid amount, so they deducted their wallet. Refund = Add amount back.
+        // Wait, Credit Card logic: if they used CC, balance was increased (debt went up). So we decrease.
+        updates[`accounts/${senderId}/${senderAccountId}/balance`] = acc.type === 'Credit Card' ? Number(acc.balance) - amount : Number(acc.balance) + amount;
+        
+        const txId = push(ref(db, `transactions/${senderId}`)).key;
+        updates[`transactions/${senderId}/${txId}`] = {
+          id: txId, type: 'income', amount, accountId: senderAccountId, categoryId: 'refund', note: `Refund: EMI rejected by ${currentUser.displayName || 'User'}`, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5), createdAt: new Date().toISOString()
+        };
+      }
+
+      updates[`loanSettlements/${currentUser.uid}/${settlement.id}`] = null;
+      await update(ref(db), updates);
+      toast.success("EMI Rejected & Refunded to user.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to reject EMI");
+    }
+    setProcessingId(null);
   };
 
   const generateNOC = async () => {
@@ -414,6 +527,45 @@ function LoanDetails() {
           <p style={{ margin: '2px 0 0', fontSize: '1.1rem', fontWeight: 700 }}>{loan.durationMonths} Months</p>
         </div>
       </div>
+
+      {pendingSettlements.length > 0 && (
+        <div style={{ marginBottom: '30px' }}>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '15px', color: '#FF9500' }}>Pending EMI Approvals ({pendingSettlements.length})</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            {pendingSettlements.map(settlement => (
+              <div key={settlement.id} style={{ background: 'rgba(255, 149, 0, 0.05)', border: '1px solid rgba(255, 149, 0, 0.3)', padding: '20px', borderRadius: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{loan.personName}</h4>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Paid an EMI</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--brand-primary)' }}>₹{settlement.amount.toLocaleString('en-IN')}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>{new Date(settlement.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '5px' }}>Receive to account</label>
+                  <select value={accountId} onChange={e => setAccountId(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '12px', border: '1px solid var(--border-subtle)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}>
+                    <option value="" disabled>Select account...</option>
+                    {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name} (₹{acc.type === 'Credit Card' ? Number(acc.creditLimit||0)-Number(acc.balance||0) : acc.balance})</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => handleApproveSettlement(settlement)} disabled={processingId === settlement.id} style={{ flex: 1, padding: '12px', borderRadius: '12px', background: 'var(--brand-primary)', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer', opacity: processingId === settlement.id ? 0.5 : 1 }}>
+                    Approve
+                  </button>
+                  <button onClick={() => handleRejectSettlement(settlement)} disabled={processingId === settlement.id} style={{ padding: '12px 20px', borderRadius: '12px', background: 'rgba(255, 59, 48, 0.1)', color: 'var(--danger)', border: 'none', fontWeight: 600, cursor: 'pointer', opacity: processingId === settlement.id ? 0.5 : 1 }}>
+                    Reject (Refund)
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loan.status === 'active' && (
         <div style={{ background: 'var(--bg-secondary)', padding: '20px', borderRadius: '24px', marginBottom: '30px' }}>

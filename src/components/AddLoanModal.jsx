@@ -25,6 +25,10 @@ function AddLoanModal({ isOpen, onClose }) {
   const [accountId, setAccountId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  const [allUsers, setAllUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [linkedUser, setLinkedUser] = useState(null);
+
   useEffect(() => {
     if (isOpen && currentUser) {
       const accountsRef = ref(db, `accounts/${currentUser.uid}`);
@@ -39,9 +43,18 @@ function AddLoanModal({ isOpen, onClose }) {
         }
       }, { onlyOnce: true });
 
+      get(ref(db, 'users')).then(snap => {
+        if (snap.exists()) {
+          const data = snap.val();
+          setAllUsers(Object.keys(data).map(k => ({ uid: k, ...data[k] })));
+        }
+      });
+
       setType('taken');
       setCategory('Bank');
       setPersonName('');
+      setSearchQuery('');
+      setLinkedUser(null);
       setIsOngoing(false);
       setPrincipal('');
       setInterestRate('');
@@ -85,18 +98,22 @@ function AddLoanModal({ isOpen, onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isOngoing && !accountId) return toast.error("Please select an account for the disbursement.");
+    if (!accountId) return toast.error("Please select a default account.");
+    if (category === 'Informal' && !linkedUser && !personName) {
+      return toast.error("Please provide a name or select an Avora user.");
+    }
     
     setIsSaving(true);
     try {
       const loanId = push(ref(db, `loans/${currentUser.uid}`)).key;
       const emi = calculateEMI();
+      const finalPersonName = linkedUser ? (linkedUser.name || linkedUser.username) : personName;
 
       const loanData = {
         id: loanId,
         type,
         category,
-        personName,
+        personName: finalPersonName,
         isOngoing,
         principalAmount: Number(principal),
         outstandingPrincipal: Number(principal),
@@ -109,22 +126,44 @@ function AddLoanModal({ isOpen, onClose }) {
         createdAt: new Date().toISOString()
       };
 
+      if (linkedUser) {
+        // Send a Linked Loan Request
+        const requestId = push(ref(db, `loanRequests/${linkedUser.uid}`)).key;
+        await update(ref(db), {
+          [`loanRequests/${linkedUser.uid}/${requestId}`]: {
+            id: requestId,
+            senderId: currentUser.uid,
+            senderAccountId: accountId, // Used later if wallet tx is executed
+            type: type === 'given' ? 'taken' : 'given', // Inverse for receiver
+            loanData: {
+              ...loanData,
+              personName: currentUser.displayName || 'User',
+              linkedUserId: currentUser.uid
+            },
+            status: 'pending',
+            createdAt: new Date().toISOString()
+          }
+        });
+        toast.success(`Loan request sent to ${linkedUser.username}!`);
+        onClose();
+        setIsSaving(false);
+        return;
+      }
+
+      // Standard Offline Loan Execution
       const updates = {};
       updates[`loans/${currentUser.uid}/${loanId}`] = loanData;
 
-      // If it's a new loan, it affects the wallet balance!
+      // If it's a new offline loan, it affects the wallet balance
       if (!isOngoing) {
         const accSnapshot = await get(ref(db, `accounts/${currentUser.uid}/${accountId}`));
         if (accSnapshot.exists()) {
           const acc = accSnapshot.val();
-          
           let amountChange = Number(principal);
-          // If you GIVE a loan, money leaves your account (Expense-like)
-          // If you TAKE a loan, money enters your account (Income-like)
           
           if (type === 'given') {
             updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' 
-              ? Number(acc.balance) + amountChange // CC balance goes up (more debt)
+              ? Number(acc.balance) + amountChange 
               : Number(acc.balance) - amountChange;
           } else {
             updates[`accounts/${currentUser.uid}/${accountId}/balance`] = acc.type === 'Credit Card' 
@@ -132,7 +171,6 @@ function AddLoanModal({ isOpen, onClose }) {
               : Number(acc.balance) + amountChange;
           }
 
-          // Also log a transaction for it
           const txId = push(ref(db, `transactions/${currentUser.uid}`)).key;
           updates[`transactions/${currentUser.uid}/${txId}`] = {
             id: txId,
@@ -140,7 +178,7 @@ function AddLoanModal({ isOpen, onClose }) {
             amount: amountChange,
             accountId,
             categoryId: 'loan_disbursement',
-            note: `${type === 'given' ? 'Loan given to' : 'Loan taken from'} ${personName}`,
+            note: `${type === 'given' ? 'Loan given to' : 'Loan taken from'} ${finalPersonName}`,
             date: startDate,
             time: new Date().toTimeString().slice(0, 5),
             isLoanTransaction: true,
@@ -151,7 +189,6 @@ function AddLoanModal({ isOpen, onClose }) {
       }
 
       await update(ref(db), updates);
-      
       toast.success('Loan added successfully!');
       onClose();
     } catch (err) {
@@ -162,6 +199,12 @@ function AddLoanModal({ isOpen, onClose }) {
   };
 
   const emiPreview = calculateEMI();
+  
+  const searchResults = searchQuery.trim().length > 0 ? allUsers.filter(u => 
+    u.uid !== currentUser.uid && 
+    (u.email?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+     u.username?.toLowerCase().includes(searchQuery.toLowerCase()))
+  ).slice(0, 5) : [];
 
   return (
     <AnimatePresence>
@@ -192,26 +235,27 @@ function AddLoanModal({ isOpen, onClose }) {
 
               {/* Ongoing Toggle */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255, 149, 0, 0.1)', padding: '15px', borderRadius: '16px', border: '1px solid rgba(255, 149, 0, 0.2)' }}>
-                <div>
+                <div style={{ flex: 1, paddingRight: '15px' }}>
                   <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#FF9500', fontWeight: 700 }}>Existing / Ongoing Loan?</h4>
                   <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Turn on if this loan is already running so it doesn't affect your current wallet balance.</p>
                 </div>
-                <div style={{ width: '50px', height: '30px', background: isOngoing ? '#FF9500' : 'var(--border-subtle)', borderRadius: '15px', position: 'relative', cursor: 'pointer', transition: '0.3s' }} onClick={() => setIsOngoing(!isOngoing)}>
+                <div style={{ width: '50px', height: '30px', background: isOngoing ? '#FF9500' : 'var(--border-subtle)', borderRadius: '15px', position: 'relative', cursor: 'pointer', transition: '0.3s', flexShrink: 0 }} onClick={() => setIsOngoing(!isOngoing)}>
                   <div style={{ width: '26px', height: '26px', background: 'white', borderRadius: '50%', position: 'absolute', top: '2px', left: isOngoing ? '22px' : '2px', transition: '0.3s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }} />
                 </div>
               </div>
 
-              {!isOngoing && (
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}><IoWalletOutline size={16} style={{transform: 'translateY(3px)'}} /> Account for Disbursement</label>
-                  <select value={accountId} onChange={e => setAccountId(e.target.value)} required={!isOngoing} style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', outline: 'none', WebkitAppearance: 'none' }}>
-                    <option value="" disabled>Select personal account...</option>
-                    {accounts.filter(acc => category === 'Credit Card' ? acc.type === 'Credit Card' : true).map(acc => (
-                      <option key={acc.id} value={acc.id}>{acc.name} (₹{acc.type === 'Credit Card' ? Number(acc.creditLimit || 0) - Number(acc.balance || 0) : acc.balance})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>
+                  <IoWalletOutline size={16} style={{transform: 'translateY(3px)'}} /> 
+                  {isOngoing || linkedUser ? 'Default Linked Account (For EMIs)' : 'Account for Disbursement'}
+                </label>
+                <select value={accountId} onChange={e => setAccountId(e.target.value)} required style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', outline: 'none', WebkitAppearance: 'none' }}>
+                  <option value="" disabled>Select personal account...</option>
+                  {accounts.filter(acc => category === 'Credit Card' ? acc.type === 'Credit Card' : true).map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.name} (₹{acc.type === 'Credit Card' ? Number(acc.creditLimit || 0) - Number(acc.balance || 0) : acc.balance})</option>
+                  ))}
+                </select>
+              </div>
 
               {/* Category */}
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -230,10 +274,58 @@ function AddLoanModal({ isOpen, onClose }) {
                 )}
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>{type === 'taken' ? 'Lender Name (Bank/Person)' : 'Borrower Name'}</label>
-                <input type="text" value={personName} onChange={e => setPersonName(e.target.value)} placeholder="e.g. HDFC Bank, Rahul" required style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', outline: 'none' }} />
-              </div>
+              {category === 'Informal' ? (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>Link Avora User (Optional) or Enter Name</label>
+                  {linkedUser ? (
+                    <div style={{ background: 'rgba(0, 113, 227, 0.1)', padding: '15px', borderRadius: '16px', border: '1px solid var(--brand-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <IoPersonOutline size={20} color="var(--brand-primary)" />
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 700, color: 'var(--brand-primary)' }}>@{linkedUser.username}</p>
+                          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{linkedUser.email}</p>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => setLinkedUser(null)} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '5px' }}>
+                        <IoClose size={20} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        type="text" 
+                        value={searchQuery} 
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setPersonName(e.target.value); // Fallback to manual name
+                        }}
+                        placeholder="Type username, email, or enter manual name..." 
+                        style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', outline: 'none' }} 
+                      />
+                      
+                      {searchResults.length > 0 && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', borderRadius: '12px', marginTop: '5px', zIndex: 10, boxShadow: '0 5px 15px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+                          {searchResults.map(u => (
+                            <div 
+                              key={u.uid} 
+                              onClick={() => { setLinkedUser(u); setSearchQuery(''); setPersonName(''); }}
+                              style={{ padding: '12px 15px', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
+                            >
+                              <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>@{u.username}</span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{u.email}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>{type === 'taken' ? 'Lender Name (Bank)' : 'Borrower Name'}</label>
+                  <input type="text" value={personName} onChange={e => setPersonName(e.target.value)} placeholder="e.g. HDFC Bank" required style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', outline: 'none' }} />
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '15px' }}>
                 <div style={{ flex: 1 }}>

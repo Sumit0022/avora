@@ -4,21 +4,27 @@ import { IoChevronBack, IoAddOutline, IoCashOutline, IoPersonOutline, IoLibraryO
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, push } from 'firebase/database';
 import AddLoanModal from '../components/AddLoanModal';
+import toast from 'react-hot-toast';
 
 function Loans() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [loans, setLoans] = useState([]);
+  const [loanRequests, setLoanRequests] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showSettled, setShowSettled] = useState(false);
 
+  const [accounts, setAccounts] = useState([]);
+  const [selectedAccounts, setSelectedAccounts] = useState({});
+  const [processingId, setProcessingId] = useState(null);
+
   useEffect(() => {
     if (!currentUser) return;
     const loansRef = ref(db, `loans/${currentUser.uid}`);
-    const unsub = onValue(loansRef, (snapshot) => {
+    const unsubLoans = onValue(loansRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         setLoans(Object.keys(data).map(k => ({ id: k, ...data[k] })));
@@ -27,7 +33,26 @@ function Loans() {
       }
       setLoading(false);
     });
-    return () => unsub();
+
+    const reqsRef = ref(db, `loanRequests/${currentUser.uid}`);
+    const unsubReqs = onValue(reqsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setLoanRequests(Object.keys(data).map(k => ({ reqId: k, ...data[k] })).filter(r => r.status === 'pending'));
+      } else {
+        setLoanRequests([]);
+      }
+    });
+
+    const accountsRef = ref(db, `accounts/${currentUser.uid}`);
+    const unsubAccounts = onValue(accountsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setAccounts(Object.keys(data).map(k => ({ id: k, ...data[k] })));
+      }
+    });
+
+    return () => { unsubLoans(); unsubReqs(); unsubAccounts(); };
   }, [currentUser]);
 
   const givenLoans = loans.filter(l => l.type === 'given' && l.status === 'active');
@@ -39,6 +64,106 @@ function Loans() {
   const getCategoryIcon = (cat) => {
     if (cat === 'Bank') return <IoLibraryOutline size={20} />;
     return <IoPersonOutline size={20} />;
+  };
+
+  const handleAccountSelect = (reqId, accountId) => {
+    setSelectedAccounts(prev => ({ ...prev, [reqId]: accountId }));
+  };
+
+  const handleAcceptRequest = async (req) => {
+    const accId = selectedAccounts[req.reqId];
+    if (!req.loanData.isOngoing && !accId) {
+      return toast.error("Please select an account for the transfer.");
+    }
+    setProcessingId(req.reqId);
+
+    try {
+      const { senderId, senderAccountId, loanData } = req;
+      
+      const receiverLoanId = loanData.id; 
+      // Generate a new ID for the sender's copy
+      const senderLoanId = push(ref(db, `loans/${senderId}`)).key;
+
+      const updates = {};
+      
+      // Update Receiver's (Current User) Loan
+      updates[`loans/${currentUser.uid}/${receiverLoanId}`] = {
+        ...loanData,
+        type: req.type,
+        personName: loanData.personName, // the sender's name
+        linkedUserId: senderId,
+        linkedLoanId: senderLoanId
+      };
+
+      // Update Sender's Loan
+      updates[`loans/${senderId}/${senderLoanId}`] = {
+        ...loanData,
+        type: req.type === 'given' ? 'taken' : 'given', // Inverse
+        personName: currentUser.displayName || 'User',
+        linkedUserId: currentUser.uid,
+        linkedLoanId: receiverLoanId
+      };
+
+      // Delete the request
+      updates[`loanRequests/${currentUser.uid}/${req.reqId}`] = null;
+
+      // Handle Wallet Updates if not ongoing
+      if (!loanData.isOngoing) {
+        const { get } = require('firebase/database');
+        const receiverAccSnap = await get(ref(db, `accounts/${currentUser.uid}/${accId}`));
+        const senderAccSnap = await get(ref(db, `accounts/${senderId}/${senderAccountId}`));
+        
+        let amount = Number(loanData.principalAmount);
+        
+        if (receiverAccSnap.exists()) {
+          const rAcc = receiverAccSnap.val();
+          if (req.type === 'given') { // Receiver is giving money
+            updates[`accounts/${currentUser.uid}/${accId}/balance`] = rAcc.type === 'Credit Card' ? Number(rAcc.balance) + amount : Number(rAcc.balance) - amount;
+          } else { // Receiver is taking money
+            updates[`accounts/${currentUser.uid}/${accId}/balance`] = rAcc.type === 'Credit Card' ? Number(rAcc.balance) - amount : Number(rAcc.balance) + amount;
+          }
+          const rTxId = push(ref(db, `transactions/${currentUser.uid}`)).key;
+          updates[`transactions/${currentUser.uid}/${rTxId}`] = {
+            id: rTxId, type: req.type === 'given' ? 'expense' : 'income', amount, accountId: accId, categoryId: 'loan_disbursement', note: `Linked Loan: ${loanData.personName}`, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5), isLoanTransaction: true, loanId: receiverLoanId, createdAt: new Date().toISOString()
+          };
+        }
+
+        if (senderAccSnap.exists()) {
+          const sAcc = senderAccSnap.val();
+          if (req.type === 'given') { // Sender is taking money
+            updates[`accounts/${senderId}/${senderAccountId}/balance`] = sAcc.type === 'Credit Card' ? Number(sAcc.balance) - amount : Number(sAcc.balance) + amount;
+          } else { // Sender is giving money
+            updates[`accounts/${senderId}/${senderAccountId}/balance`] = sAcc.type === 'Credit Card' ? Number(sAcc.balance) + amount : Number(sAcc.balance) - amount;
+          }
+          const sTxId = push(ref(db, `transactions/${senderId}`)).key;
+          updates[`transactions/${senderId}/${sTxId}`] = {
+            id: sTxId, type: req.type === 'given' ? 'income' : 'expense', amount, accountId: senderAccountId, categoryId: 'loan_disbursement', note: `Linked Loan: ${currentUser.displayName || 'User'}`, date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5), isLoanTransaction: true, loanId: senderLoanId, createdAt: new Date().toISOString()
+          };
+        }
+      }
+
+      const { update } = require('firebase/database');
+      await update(ref(db), updates);
+      toast.success("Loan linked and active!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to accept loan request");
+    }
+    setProcessingId(null);
+  };
+
+  const handleRejectRequest = async (reqId) => {
+    setProcessingId(reqId);
+    try {
+      const { update } = require('firebase/database');
+      await update(ref(db), {
+        [`loanRequests/${currentUser.uid}/${reqId}`]: null
+      });
+      toast.success("Loan request rejected");
+    } catch (err) {
+      console.error(err);
+    }
+    setProcessingId(null);
   };
 
   return (
@@ -62,6 +187,50 @@ function Loans() {
           <p style={{ margin: '5px 0 0', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)' }}>₹{totalTaken.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
         </div>
       </div>
+
+      {loanRequests.length > 0 && (
+        <div style={{ marginBottom: '30px' }}>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '15px', color: '#FF9500' }}>Pending Requests ({loanRequests.length})</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            {loanRequests.map(req => (
+              <div key={req.reqId} style={{ background: 'rgba(255, 149, 0, 0.05)', border: '1px solid rgba(255, 149, 0, 0.3)', padding: '20px', borderRadius: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>Linked Request from</p>
+                    <h4 style={{ margin: '2px 0 0', fontSize: '1.1rem', fontWeight: 700 }}>{req.loanData.personName}</h4>
+                    <p style={{ margin: '5px 0 0', fontSize: '0.9rem', color: req.type === 'given' ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
+                      {req.type === 'given' ? 'Needs to borrow from you' : 'Wants to lend to you'}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>₹{req.loanData.principalAmount.toLocaleString('en-IN')}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{req.loanData.interestRate}% ({req.loanData.interestType})</p>
+                  </div>
+                </div>
+
+                {!req.loanData.isOngoing && (
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '5px' }}>Account for transfer</label>
+                    <select value={selectedAccounts[req.reqId] || ''} onChange={e => handleAccountSelect(req.reqId, e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '12px', border: '1px solid var(--border-subtle)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}>
+                      <option value="" disabled>Select account...</option>
+                      {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name} (₹{acc.type === 'Credit Card' ? Number(acc.creditLimit||0)-Number(acc.balance||0) : acc.balance})</option>)}
+                    </select>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => handleAcceptRequest(req)} disabled={processingId === req.reqId} style={{ flex: 1, padding: '12px', borderRadius: '12px', background: 'var(--brand-primary)', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer', opacity: processingId === req.reqId ? 0.5 : 1 }}>
+                    {processingId === req.reqId ? 'Processing...' : 'Accept'}
+                  </button>
+                  <button onClick={() => handleRejectRequest(req.reqId)} disabled={processingId === req.reqId} style={{ padding: '12px 20px', borderRadius: '12px', background: 'rgba(255, 59, 48, 0.1)', color: 'var(--danger)', border: 'none', fontWeight: 600, cursor: 'pointer', opacity: processingId === req.reqId ? 0.5 : 1 }}>
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '15px' }}>Active Loans</h3>
       {loading ? (
