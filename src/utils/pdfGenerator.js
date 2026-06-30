@@ -1,5 +1,5 @@
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export const generatePDFReport = (transactions, summary, dateRangeStr, profile) => {
   const doc = new jsPDF('p', 'pt', 'a4');
@@ -60,7 +60,7 @@ export const generatePDFReport = (transactions, summary, dateRangeStr, profile) 
     ];
   });
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 230,
     head: [['Date', 'Type', 'Category', 'Note', 'Amount']],
     body: tableData,
