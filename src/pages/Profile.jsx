@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { ref, get, update, remove } from 'firebase/database';
-import { IoPersonOutline, IoLogOutOutline, IoColorPaletteOutline, IoQrCodeOutline, IoChevronForward, IoCloseOutline, IoLockClosedOutline, IoKeypadOutline, IoFingerPrintOutline } from 'react-icons/io5';
+import { deleteUser } from 'firebase/auth';
+import { IoPersonOutline, IoLogOutOutline, IoColorPaletteOutline, IoQrCodeOutline, IoChevronForward, IoCloseOutline, IoLockClosedOutline, IoKeypadOutline, IoFingerPrintOutline, IoWarningOutline } from 'react-icons/io5';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -30,6 +31,12 @@ function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
 
+  // Account Deletion State
+  const [isDeleteStep1Open, setIsDeleteStep1Open] = useState(false);
+  const [isDeleteStep2Open, setIsDeleteStep2Open] = useState(false);
+  const [isDeleteStep3Open, setIsDeleteStep3Open] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   useEffect(() => {
     if (!currentUser) return;
     
@@ -56,6 +63,56 @@ function Profile() {
     } catch (error) {
       console.error("Failed to log out", error);
     }
+  };
+
+  const executeDeleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      const uid = currentUser.uid;
+      const updates = {};
+      
+      const userGroupsSnap = await get(ref(db, `userGroups/${uid}`));
+      if (userGroupsSnap.exists()) {
+        const groups = Object.keys(userGroupsSnap.val());
+        for (const gId of groups) {
+          const membersSnap = await get(ref(db, `groupMembers/${gId}`));
+          if (membersSnap.exists()) {
+            const members = membersSnap.val();
+            const me = members[uid];
+            if (me && me.role === 'admin') {
+              const others = Object.keys(members).filter(k => k !== uid && members[k].status === 'approved');
+              if (others.length > 0) {
+                updates[`groupMembers/${gId}/${others[0]}/role`] = 'admin';
+              }
+            }
+            updates[`groupMembers/${gId}/${uid}/status`] = 'deleted';
+          }
+        }
+      }
+
+      updates[`accounts/${uid}`] = null;
+      updates[`transactions/${uid}`] = null;
+      updates[`goals/${uid}`] = null;
+      updates[`loans/${uid}`] = null;
+      updates[`loanRequests/${uid}`] = null;
+      updates[`categories/${uid}`] = null;
+      updates[`userGroups/${uid}`] = null;
+      updates[`users/${uid}`] = null;
+
+      await update(ref(db), updates);
+      await deleteUser(currentUser);
+      
+      toast.success("Account deleted successfully.");
+      navigate('/login');
+    } catch(err) {
+      console.error(err);
+      if (err.code === 'auth/requires-recent-login') {
+        toast.error("Security: Please log out and log back in before deleting your account.");
+      } else {
+        toast.error("Failed to delete account. You may need to re-authenticate.");
+      }
+    }
+    setIsDeleting(false);
   };
 
   const toggleTheme = async () => {
@@ -309,6 +366,21 @@ function Profile() {
               <IoLogOutOutline size={22} color="var(--danger)" />
             </div>
             <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--danger)' }}>Log Out</span>
+          </div>
+        </motion.div>
+
+        {/* Delete Account Row */}
+        <motion.div 
+          onClick={() => setIsDeleteStep1Open(true)}
+          whileHover={{ backgroundColor: 'var(--bg-glass)' }}
+          whileTap={{ backgroundColor: 'var(--border-subtle)' }}
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px', cursor: 'pointer', borderTop: '1px solid var(--border-subtle)' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div style={{ background: 'rgba(255, 69, 58, 0.1)', padding: '8px', borderRadius: '10px' }}>
+              <IoWarningOutline size={22} color="var(--danger)" />
+            </div>
+            <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--danger)' }}>Delete Account</span>
           </div>
         </motion.div>
       </div>

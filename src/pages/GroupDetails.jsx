@@ -36,6 +36,9 @@ function GroupDetails() {
   
   const [actionSheetItem, setActionSheetItem] = useState(null);
 
+  const [showAdminSelectModal, setShowAdminSelectModal] = useState(false);
+  const [selectedNewAdmin, setSelectedNewAdmin] = useState('');
+
   useEffect(() => {
     if (!currentUser) return;
 
@@ -74,11 +77,11 @@ function GroupDetails() {
             if (uSnap.exists()) {
               uInfos[m.uid] = uSnap.val();
             } else {
-              uInfos[m.uid] = { name: 'Unknown User (No Profile)' };
+              uInfos[m.uid] = { name: 'User (Account Deleted)' };
             }
           } catch (err) {
             console.error("Error fetching user", m.uid, err);
-            uInfos[m.uid] = { name: 'Unknown User (Error)' };
+            uInfos[m.uid] = { name: 'User (Account Deleted)' };
           }
         }));
         
@@ -434,6 +437,9 @@ function GroupDetails() {
     const myPendingAsPayer = pendingSettlements.filter(s => s.paidBy === currentUser.uid);
     const myPendingAsReceiver = pendingSettlements.filter(s => s.paidTo === currentUser.uid);
 
+    // Save hasDues globally for the leave button check
+    window.groupHasDues = iOwe.length > 0 || owedToMe.length > 0 || myPendingAsPayer.length > 0 || myPendingAsReceiver.length > 0;
+
     return (
       <div style={{ padding: '20px' }}>
         
@@ -560,6 +566,45 @@ function GroupDetails() {
     );
   };
 
+  const executeLeaveGroup = async (newAdminUid = null) => {
+    try {
+      const updates = {};
+      const { update } = require('firebase/database');
+      
+      updates[`groupMembers/${groupId}/${currentUser.uid}/status`] = 'left';
+      if (newAdminUid) {
+        updates[`groupMembers/${groupId}/${newAdminUid}/role`] = 'admin';
+      }
+      
+      await update(ref(db), updates);
+      toast.success("You have left the group.");
+      navigate('/groups');
+    } catch(err) {
+      toast.error("Failed to leave group.");
+    }
+  };
+
+  const handleLeaveGroup = () => {
+    if (window.groupHasDues) {
+      return toast.error("You must settle all dues before leaving the group.", { icon: '⚠️' });
+    }
+
+    const approvedMembers = members.filter(m => m.status === 'approved');
+    
+    if (myRole === 'admin') {
+      const otherMembers = approvedMembers.filter(m => m.uid !== currentUser.uid);
+      if (otherMembers.length === 0) {
+        executeLeaveGroup();
+      } else if (otherMembers.length === 1) {
+        executeLeaveGroup(otherMembers[0].uid);
+      } else {
+        setShowAdminSelectModal(true);
+      }
+    } else {
+      executeLeaveGroup();
+    }
+  };
+
   const renderSettings = () => {
     const pendingMembers = members.filter(m => m.status === 'pending');
     const approvedMembers = members.filter(m => m.status === 'approved');
@@ -619,6 +664,19 @@ function GroupDetails() {
               </div>
             ))}
           </div>
+        </div>
+        
+        <div style={{ marginTop: '30px' }}>
+          <button 
+            onClick={() => {
+               if (window.confirm("Are you sure you want to leave this group?")) {
+                 handleLeaveGroup();
+               }
+            }}
+            style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'rgba(255, 69, 58, 0.1)', color: 'var(--danger)', border: 'none', fontWeight: 700, fontSize: '1rem', cursor: 'pointer' }}
+          >
+            Leave Group
+          </button>
         </div>
       </div>
     );
@@ -746,6 +804,28 @@ function GroupDetails() {
               </div>
 
               <button onClick={() => setActionSheetItem(null)} style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontWeight: 700, fontSize: '1.1rem', marginTop: '20px', cursor: 'pointer' }}>Cancel</button>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Admin Delegation Modal */}
+        {showAdminSelectModal && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 4000, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(5px)' }}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ background: 'var(--bg-primary)', padding: '30px', borderRadius: '24px', width: '90%', maxWidth: '400px' }}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.3rem', fontWeight: 800 }}>Transfer Admin Rights</h3>
+              <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>You must select a new Admin before leaving the group.</p>
+              
+              <select value={selectedNewAdmin} onChange={e => setSelectedNewAdmin(e.target.value)} style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', marginBottom: '20px', outline: 'none', WebkitAppearance: 'none' }}>
+                <option value="" disabled>Select a member...</option>
+                {members.filter(m => m.status === 'approved' && m.uid !== currentUser.uid).map(m => (
+                  <option key={m.uid} value={m.uid}>{usersInfo[m.uid]?.name || 'Unknown'}</option>
+                ))}
+              </select>
+
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <button onClick={() => setShowAdminSelectModal(false)} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: 'none', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={() => { if(!selectedNewAdmin) return toast.error("Select a member first"); executeLeaveGroup(selectedNewAdmin); }} style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'var(--brand-primary)', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Confirm & Leave</button>
+              </div>
             </motion.div>
           </div>
         )}

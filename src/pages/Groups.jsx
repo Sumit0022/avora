@@ -13,6 +13,7 @@ function Groups() {
   
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showLeftGroups, setShowLeftGroups] = useState(false);
   
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -180,14 +181,14 @@ function Groups() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        {groups.length === 0 ? (
+        {groups.filter(g => g.myStatus !== 'left').length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--bg-secondary)', borderRadius: '24px' }}>
             <IoPeopleOutline size={48} style={{ color: 'var(--text-tertiary)', marginBottom: '10px' }} />
             <h3 style={{ margin: '0 0 10px 0' }}>No Groups Yet</h3>
             <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Create a group or join one using an invite code to start sharing expenses.</p>
           </div>
         ) : (
-          groups.map(group => (
+          groups.filter(g => g.myStatus !== 'left').map(group => (
             <motion.div 
               key={group.id}
               whileHover={{ scale: 1.01 }}
@@ -204,7 +205,7 @@ function Groups() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                 <div style={{ width: '50px', height: '50px', borderRadius: '16px', background: 'var(--brand-gradient)', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.2rem', fontWeight: 800 }}>
-                  {group.name.charAt(0).toUpperCase()}
+                  {group.name?.charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 700 }}>{group.name}</h3>
@@ -223,6 +224,36 @@ function Groups() {
           ))
         )}
       </div>
+
+      {groups.filter(g => g.myStatus === 'left').length > 0 && (
+        <div style={{ marginTop: '40px' }}>
+          <button onClick={() => setShowLeftGroups(!showLeftGroups)} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+            {showLeftGroups ? 'Hide' : 'See'} Left Groups
+          </button>
+          
+          <AnimatePresence>
+            {showLeftGroups && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden', marginTop: '15px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  {groups.filter(g => g.myStatus === 'left').map(group => (
+                    <div key={group.id} style={{ background: 'var(--bg-secondary)', borderRadius: '20px', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', opacity: 0.6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <div style={{ width: '50px', height: '50px', borderRadius: '16px', background: 'var(--text-tertiary)', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.2rem', fontWeight: 800 }}>
+                          {group.name?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{group.name}</h3>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>You left this group</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* Create Modal */}
       <AnimatePresence>
