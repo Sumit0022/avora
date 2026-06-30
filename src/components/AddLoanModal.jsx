@@ -311,7 +311,11 @@ function AddLoanModal({ isOpen, onClose }) {
                 </label>
                 <select value={accountId} onChange={e => setAccountId(e.target.value)} required style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: '1rem', outline: 'none', WebkitAppearance: 'none' }}>
                   <option value="" disabled>Select personal account...</option>
-                  {accounts.filter(acc => category === 'Credit Card' ? acc.type === 'Credit Card' : true).map(acc => (
+                  {accounts.filter(acc => {
+                    if (category === 'Credit Card') return acc.type === 'Credit Card';
+                    if (category === 'Informal') return acc.type !== 'Credit Card';
+                    return true;
+                  }).map(acc => (
                     <option key={acc.id} value={acc.id}>{acc.name} (₹{acc.type === 'Credit Card' ? Number(acc.creditLimit || 0) - Number(acc.balance || 0) : acc.balance})</option>
                   ))}
                 </select>
