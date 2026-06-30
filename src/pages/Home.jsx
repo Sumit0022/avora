@@ -200,6 +200,29 @@ function Home() {
               <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.05rem', lineHeight: 1.6 }}>Install Avora directly on your phone's home screen. App-like experience, zero App Store hassle.</p>
             </motion.div>
 
+            {/* Bento 4 */}
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.3 }} style={{ background: '#fff', borderRadius: '32px', padding: '40px', boxShadow: '0 10px 40px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.03)', gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ zIndex: 1, maxWidth: '400px' }}>
+                <div style={{ width: '56px', height: '56px', background: 'rgba(255,149,0,0.1)', color: '#ff9500', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+                  <IoShieldCheckmarkOutline size={28} />
+                </div>
+                <h3 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '12px', color: '#1d1d1f' }}>Bank-Level Security</h3>
+                <p style={{ color: '#52525b', fontSize: '1.05rem', lineHeight: 1.6 }}>Your financial data is encrypted and protected with industry-standard security protocols. Your peace of mind is our priority.</p>
+              </div>
+              
+              <div className="bento-anim">
+                 <motion.div animate={{ rotateY: [0, 360] }} transition={{ duration: 15, repeat: Infinity, ease: 'linear' }} style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', position: 'relative' }}>
+                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) translateZ(40px)', background: '#fff', padding: '24px', borderRadius: '50%', boxShadow: '0 20px 40px rgba(255,149,0,0.2)', color: '#ff9500' }}>
+                       <IoShieldCheckmarkOutline size={50} />
+                    </div>
+                    {/* Ring 1 */}
+                    <motion.div initial={{ rotateX: 75, rotateZ: 0 }} animate={{ rotateX: 75, rotateZ: 360 }} transition={{ duration: 10, repeat: Infinity, ease: 'linear' }} style={{ position: 'absolute', top: '50%', left: '50%', width: '180px', height: '180px', margin: '-90px 0 0 -90px', border: '2px dashed rgba(255,149,0,0.4)', borderRadius: '50%' }} />
+                    {/* Ring 2 */}
+                    <motion.div initial={{ rotateX: 75, rotateZ: 360 }} animate={{ rotateX: 75, rotateZ: 0 }} transition={{ duration: 15, repeat: Infinity, ease: 'linear' }} style={{ position: 'absolute', top: '50%', left: '50%', width: '240px', height: '240px', margin: '-120px 0 0 -120px', border: '1px solid rgba(255,149,0,0.2)', borderRadius: '50%' }} />
+                 </motion.div>
+              </div>
+            </motion.div>
+
           </div>
         </section>
 
@@ -232,6 +255,15 @@ function Home() {
       </div>
 
       <style dangerouslySetInnerHTML={{__html: `
+        .bento-anim {
+          position: absolute;
+          right: 15%;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 200px;
+          height: 200px;
+          perspective: 1000px;
+        }
         @media (max-width: 768px) {
           .hero-section {
             flex-direction: column !important;
@@ -259,6 +291,13 @@ function Home() {
           .bento-container > div {
             grid-column: span 1 !important;
             padding: 24px !important;
+          }
+          .bento-anim {
+            position: relative;
+            right: auto;
+            top: auto;
+            transform: none;
+            margin: 40px auto 20px auto;
           }
         }
         @media (max-width: 480px) {
