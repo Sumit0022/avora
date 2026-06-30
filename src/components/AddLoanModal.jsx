@@ -37,9 +37,6 @@ function AddLoanModal({ isOpen, onClose }) {
         if (data) {
           const accList = Object.keys(data).map(k => ({ id: k, ...data[k] }));
           setAccounts(accList);
-          if (accList.length > 0 && !accountId) {
-            setAccountId(accList[0].id);
-          }
         }
       }, { onlyOnce: true });
 
@@ -63,6 +60,17 @@ function AddLoanModal({ isOpen, onClose }) {
       setStartDate(new Date().toISOString().split('T')[0]);
     }
   }, [isOpen, currentUser]);
+
+  useEffect(() => {
+    if (accounts.length > 0) {
+      const validAcc = accounts.find(a => category === 'Credit Card' ? a.type === 'Credit Card' : a.type !== 'Credit Card');
+      if (validAcc) {
+        setAccountId(validAcc.id);
+      } else {
+        setAccountId('');
+      }
+    }
+  }, [category, accounts]);
 
   useEffect(() => {
     if (type === 'given') {
@@ -373,8 +381,7 @@ function AddLoanModal({ isOpen, onClose }) {
                   <option value="" disabled>Select personal account...</option>
                   {accounts.filter(acc => {
                     if (category === 'Credit Card') return acc.type === 'Credit Card';
-                    if (category === 'Informal') return acc.type !== 'Credit Card';
-                    return true;
+                    return acc.type !== 'Credit Card'; // Hide CCs for Bank and Informal
                   }).map(acc => (
                     <option key={acc.id} value={acc.id}>{acc.name} (₹{acc.type === 'Credit Card' ? Number(acc.creditLimit || 0) - Number(acc.balance || 0) : acc.balance})</option>
                   ))}
