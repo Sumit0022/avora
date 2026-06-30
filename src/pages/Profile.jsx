@@ -67,7 +67,53 @@ function Profile() {
 
   const executeDeleteAccount = async () => {
     setIsDeleting(true);
+
     try {
+      if (profile.biometricId) {
+        // Real Biometric Challenge
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+        
+        try {
+          await navigator.credentials.get({
+            publicKey: {
+              challenge,
+              allowCredentials: [{
+                type: 'public-key',
+                id: new Uint8Array(Array.from(atob(profile.biometricId)).map(c => c.charCodeAt(0)))
+              }],
+              userVerification: "required"
+            }
+          });
+        } catch (e) {
+          toast.error("Biometric verification failed or was cancelled.");
+          setIsDeleting(false);
+          setIsDeleteStep3Open(false);
+          return;
+        }
+      } else if (profile.appLockPin) {
+        // Fallback to PIN if biometrics not set up but PIN is
+        const userPin = prompt("Please enter your 4-digit App Lock PIN to confirm deletion:");
+        if (userPin !== profile.appLockPin) {
+          toast.error("Incorrect PIN.");
+          setIsDeleting(false);
+          setIsDeleteStep3Open(false);
+          return;
+        }
+      } else {
+        // If neither is set, prompt for confirmation
+        const confirmStr = prompt('Type "DELETE" to confirm account deletion:');
+        if (confirmStr !== "DELETE") {
+          toast.error("Deletion cancelled.");
+          setIsDeleting(false);
+          setIsDeleteStep3Open(false);
+          return;
+        }
+      }
+
+      // 1. Show the toast right away before starting heavy DB operations
+      toast.success("Identity verified. Wiping account data...");
+
       const uid = currentUser.uid;
       const updates = {};
       
@@ -107,8 +153,10 @@ function Profile() {
         console.warn("Auth deletion failed (likely requires-recent-login), but DB is wiped.", authErr);
       }
       
+      
       await logout();
       toast.success("Account deleted successfully.");
+      setIsDeleteStep3Open(false);
       navigate('/login');
     } catch(err) {
       console.error(err);
@@ -552,14 +600,12 @@ function Profile() {
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <button 
-                  onClick={() => {
-                    setIsDeleteStep3Open(false);
-                    executeDeleteAccount();
-                  }} 
+                <button 
+                  onClick={() => executeDeleteAccount()} 
                   disabled={isDeleting}
                   style={{ width: '100%', padding: '16px', borderRadius: '16px', background: 'var(--danger)', color: 'white', border: 'none', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', opacity: isDeleting ? 0.7 : 1 }}
                 >
-                  {isDeleting ? 'Deleting...' : 'Simulate Fingerprint Scan'}
+                  {isDeleting ? 'Deleting...' : (profile.biometricId ? 'Verify Identity & Delete' : 'Confirm & Delete')}
                 </button>
                 <button 
                   onClick={() => setIsDeleteStep3Open(false)}
